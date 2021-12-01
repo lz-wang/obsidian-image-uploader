@@ -1,0 +1,4 @@
+cos-python-sdk-v5
+pyqt5~=5.15.6
+
+pyyaml~=6.0

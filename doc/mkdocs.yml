@@ -1,0 +1,18 @@
+site_name: Obsidian图片批量上传到腾讯COS
+
+nav:
+  - 项目说明: index.md
+  - 核心代码: core.md
+  - 模块代码: pkg.md
+
+#theme: readthedocs
+theme: material
+
+plugins:
+  - include-markdown
+  - mkdocstrings:
+      handlers:  # 将上级目录（源码）加入文档生成目录中
+        python:
+          setup_commands:
+            - import sys
+            - sys.path.insert(0, "..")

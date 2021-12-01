@@ -1,0 +1,68 @@
+import time
+from queue import Queue
+
+from PyQt5.QtCore import QThread, pyqtSignal
+
+from pkg.tencent_cos.cos import TencentCos
+from pkg.tencent_cos.cos_bucket import TencentCosBucket
+from pkg.utils.logger import get_logger
+from src.config_loader import ConfigLoader
+
+
+class ImageServer(QThread):
+    """上传一组文件到腾讯COS，与GUI联动的QT子线程类"""
+    tip_text = pyqtSignal(str)
+    bucket_list = pyqtSignal(list)
+    dir_list = pyqtSignal(list)
+    check_result = pyqtSignal(bool, str)
+
+    def __init__(self):
+        super().__init__()
+        self.log = get_logger(self.__class__.__name__)
+        self.event_queue = Queue()
+        self.cos = None
+
+    def list_bucket(self, cos_type):
+        """连接到腾讯COS，获取存储桶列表"""
+        if cos_type == 'tencent':
+            config = ConfigLoader().read_config()
+            secret_id = config['cos']['tencent']['secret_id']
+            secret_key = config['cos']['tencent']['secret_key']
+            try:
+                self.cos = TencentCos(secret_id, secret_key)
+                self.check_result.emit(True, '')
+                self.bucket_list.emit(self.cos.list_buckets())
+            except Exception as e:
+                self.check_result.emit(False, str(e))
+        else:
+            raise TypeError(f'Unknown cos type: {cos_type}')
+
+    def list_files(self, bucket_name):
+        """连接到腾讯COS，获取存储桶文件夹列表"""
+        if not bucket_name:
+            self.dir_list.emit([])
+        if not self.cos:
+            self.dir_list.emit([])
+
+        cos_bucket = TencentCosBucket(self.cos, bucket_name)
+        contents = cos_bucket.list_objects()
+        folders = []
+        for c in contents:
+            if '/' not in c:
+                continue
+            else:
+                folders.append('/'.join(c.split('/')[:-1]))
+        self.dir_list.emit(list(set(folders)))
+
+    def run(self):
+        while True:
+            time.sleep(0.1)
+            if self.event_queue.qsize() > 0:
+                event = self.event_queue.get()
+                self.log.info(f'receive event: {event}')
+                if event['type'] == 'LIST_BUCKET':
+                    self.list_bucket(event['cos'])
+                elif event['type'] == 'LIST_FILES':
+                    self.list_files(event['bucket'])
+                else:
+                    raise TypeError(f'Unknown event: {event}')

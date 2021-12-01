@@ -1,0 +1,12 @@
+cos:
+  tencent:
+    bucket: obsidian
+    dir: obsidian
+    secret_id: xxx
+    secret_key: xxx
+obsidian:
+  attachment_path: "/"
+  note_default_path: /
+  overwrite_suffix: _new
+  recent_not_path: /
+  vault_path: /
