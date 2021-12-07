@@ -35,9 +35,10 @@ class ConfigLoader(object):
     def _get_config_file(self, config_file):
         if config_file is not None:
             return config_file
-        return self.init_config()
+        return self.init_user_config()
 
     def read_config(self):
+        self.log.info(f'Read user config in {self.config_file}...')
         with open(self.config_file, 'r') as f:
             self.config = yaml.safe_load(f)
 
@@ -48,7 +49,7 @@ class ConfigLoader(object):
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(new_config, f)
 
-    def init_config(self):
+    def init_user_config(self):
         user_config = os.path.join(DEFAULT_CONFIG_PATH, 'app_config.yaml')
         if os.path.exists(user_config) and self.check_user_config(user_config):
             self.log.info(f'check user config in {user_config} format success')
@@ -68,6 +69,7 @@ class ConfigLoader(object):
                 uc = yaml.safe_load(f)
                 dc = copy.deepcopy(DEFAULT_CONFIG)
                 self.compare_dict_keys(dc, uc)
+            return True
         except Exception as e:
             self.log.warning(f'check user config in {user_config_path} '
                              f'format error, detail: {str(e)}')

@@ -30,6 +30,7 @@ class ObsidianImageUploader(QWidget):
         self.upload_thread = self._init_upload_thread()
         self.setup_img_dlg = SetupImageServerDialog()
         self.setup_img_dlg.setWindowModality(Qt.ApplicationModal)
+        self.setup_img_dlg.config_saved.connect(self.try_connect_img_server)
 
     def _init_upload_thread(self):
         uploder = Uploader(

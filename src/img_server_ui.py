@@ -2,8 +2,8 @@ from PyQt5.QtWidgets import (
     QPushButton, QLineEdit, QLabel, QMessageBox,
     QHBoxLayout, QVBoxLayout, QDialog,
     QComboBox)
+from PyQt5.Qt import pyqtSignal
 
-from pkg.tencent_cos.cos_bucket import TencentCosBucket
 from pkg.utils.logger import get_logger
 from pkg.utils.qt_utils import reconnect
 from src.config_loader import ConfigLoader
@@ -11,6 +11,8 @@ from src.img_server import ImageServer
 
 
 class SetupImageServerDialog(QDialog):
+    config_saved = pyqtSignal(bool)
+
     def __init__(self):
         super().__init__()
         self.config_loader = ConfigLoader()
@@ -139,6 +141,7 @@ class SetupImageServerDialog(QDialog):
 
     def apply_changes(self):
         self.save_config()
+        self.config_saved.emit(True)
         self.close()
 
     def save_config(self):
