@@ -34,3 +34,17 @@ pip install pyqt5
 ### 开始开发
 
 运行或调试根目录下的`main.py`即可。
+
+### 重新打包
+
+在项目根目录，首先删除之前的构建残存目录：
+```shell
+sudo rm -rf build dist
+```
+
+然后重新生成打包的文件:
+```shell
+sudo pyinstaller -F -w main.py
+```
+
+最后双击`dist`目录下的`main`文件即可运行。
