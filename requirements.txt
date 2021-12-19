@@ -1,4 +1,5 @@
 cos-python-sdk-v5
-pyqt5
-pyyaml
+pyqt5~=5.15.6
+pyyaml~=6.0
 pyinstaller
+loguru~=0.5.3
