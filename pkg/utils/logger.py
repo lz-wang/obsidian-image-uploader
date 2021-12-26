@@ -18,7 +18,7 @@ def get_logger2(name):
     return my_logger
 
 
-def get_logger(name):
+def get_logger(name=None):
     # remove default logger
     logger.remove()
 
