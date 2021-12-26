@@ -26,8 +26,8 @@ class ImageServer(QThread):
         """连接到腾讯COS，获取存储桶列表"""
         if cos_type == 'tencent':
             config = ConfigLoader().read_config()
-            secret_id = config['cos']['tencent']['secret_id']
-            secret_key = config['cos']['tencent']['secret_key']
+            secret_id = config.cos.tencent.secret_id
+            secret_key = config.cos.tencent.secret_key
             try:
                 self.cos = TencentCos(secret_id, secret_key)
                 self.check_result.emit(True, '')

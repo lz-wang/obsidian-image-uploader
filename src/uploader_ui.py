@@ -1,5 +1,6 @@
 import os
 import sys
+import traceback
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -179,7 +180,7 @@ class ObsidianImageUploader(QWidget):
         else:
             default_path = self.ob_valut_path
         file_name = dlg_open_files.getOpenFileName(self, directory=default_path)[0]
-        self.config['obsidian']['note_default_path'] = file_name
+        self.config.obsidian.note_default_path = file_name
         self.config_loader.update_config(self.config)
         if file_name:
             self.ob_md_file_path.setText(file_name)
@@ -191,7 +192,7 @@ class ObsidianImageUploader(QWidget):
             path = dlg_open_path.getExistingDirectory(caption="选取Obsidian附件", directory=path)
         except Exception as e:
             self.log.error(e)
-        self.config['obsidian']['attachment_path'] = path
+        self.config.obsidian.attachment_path = path
         self.config_loader.update_config(self.config)
         self.ob_attachment_path.setText(path)
 
@@ -227,8 +228,8 @@ class ObsidianImageUploader(QWidget):
             suffix = ''
         else:
             suffix = self.overwrite_suffix.text()
-            self.config['obsidian']['overwrite_suffix'] = suffix
-        self.config['obsidian']['recent_not_path'] = self.ob_md_file_path.text()
+            self.config.obsidian.overwrite_suffix = suffix
+        self.config.obsidian.recent_note_path = self.ob_md_file_path.text()
         self.config_loader.update_config(self.config)
         result, new_ob_file = update_ob_file(ob_file, pure_url_dict, suffix)
         result = '成功' if result is True else '失败'
@@ -247,6 +248,7 @@ class ObsidianImageUploader(QWidget):
 
     def setup_img_server(self):
         self.setup_img_dlg.show()
+        self.setup_img_dlg.check_connect()
 
     def try_connect_img_server(self):
         try:
@@ -259,6 +261,7 @@ class ObsidianImageUploader(QWidget):
             self.upload_thread.start()
         except Exception as e:
             self.log.error(f'cannot connect image server, REASON: {str(e)}')
+            self.log.error(traceback.format_exc())
             self.check_img_server_label.setText(
                 '无法连接到图床服务器，请检查网络连接或修改图床配置')
             self.check_img_server_label.setStyleSheet(

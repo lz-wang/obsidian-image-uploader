@@ -29,10 +29,10 @@ class ConfigLoader(object):
 
         return self.config
 
-    def update_config(self, new_config=None):
+    def update_config(self, new_config: AppConfigModel = None):
         new_config = self.config if new_config is None else new_config
         with open(self.config_file, 'w') as f:
-            yaml.safe_dump(new_config, f)
+            yaml.safe_dump(new_config.dict(), f)
 
     def init_user_config(self):
         user_config = os.path.join(DEFAULT_CONFIG_PATH, 'app_config.yaml')

@@ -71,19 +71,22 @@ class SetupImageServerDialog(QDialog):
         self.select_bucket_box.currentTextChanged.connect(self.select_folder)
         self.select_bucket_box.setMinimumWidth(150)
         self.select_bucket_box.setToolTip('⚠️ 存储桶必须为\"公有读"权限时，才能被公网访问')
-
+        config_bucket_label = QLabel(f'(当前配置存储桶: {self.config.cos.tencent.bucket[:15]})')
         default_bucket_layout = QHBoxLayout()
         default_bucket_layout.addWidget(default_bucket_label)
         default_bucket_layout.addWidget(self.select_bucket_box)
+        default_bucket_layout.addWidget(config_bucket_label)
         default_bucket_layout.addStretch(1)
 
-        default_dir_label = QLabel('选择默认文件夹:')
+        default_dir_label = QLabel('选择默认存储目录:')
         default_dir_label.setFixedWidth(self.label_width)
         self.select_folder_box = QComboBox()
         self.select_folder_box.setMinimumWidth(150)
+        config_dir_label = QLabel(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
         default_dir_layout = QHBoxLayout()
         default_dir_layout.addWidget(default_dir_label)
         default_dir_layout.addWidget(self.select_folder_box)
+        default_dir_layout.addWidget(config_dir_label)
         default_dir_layout.addStretch(1)
 
         self.select_layout = QVBoxLayout()
@@ -157,6 +160,7 @@ class SetupImageServerDialog(QDialog):
         self.close()
 
     def save_config(self):
-        self.config['cos']['tencent']['secret_id'] = self.secret_id_lineedit.text()
-        self.config['cos']['tencent']['secret_key'] = self.secret_key_lineedit.text()
+        self.config.cos.tencent.secret_id = self.secret_id_lineedit.text()
+        self.config.cos.tencent.secret_key = self.secret_key_lineedit.text()
         self.config_loader.update_config(self.config)
+        self.log.info('Config Saved Success')

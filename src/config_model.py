@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
         'attachment_path': '/',
         'note_default_path': '/',
         'overwrite_suffix': '_new',
-        'recent_not_path': '/',
+        'recent_note_path': '/',
         'vault_path': '/'
     }
 }
@@ -36,7 +36,7 @@ class ObsidianConfigModel(BaseModel):
     attachment_path: str
     note_default_path: str
     overwrite_suffix: str
-    recent_not_path: str
+    recent_note_path: str
     vault_path: str
 
 
