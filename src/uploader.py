@@ -39,8 +39,8 @@ class Uploader(QThread):
     def connect_server(self):
         """连接到腾讯COS，获取存储桶信息"""
         config = ConfigLoader().read_config()
-        secret_id = config['cos']['tencent']['secret_id']
-        secret_key = config['cos']['tencent']['secret_key']
+        secret_id = config.cos.tencent.secret_id
+        secret_key = config.cos.tencent.secret_key
         self.cos = TencentCos(secret_id, secret_key)
 
     def _get_remote_files(self):
@@ -64,6 +64,8 @@ class Uploader(QThread):
                     pass
 
     def check_files(self, remote_files):
+        """检查文件同步状态"""
+        # TODO: 根据文件的hash值和filename共同校验
         synced_files = [f for f in self.local_files if f.split('/')[-1] in remote_files]
         msg = '正在检查文件同步状态：'
         has_not_synced = False
@@ -80,6 +82,7 @@ class Uploader(QThread):
         return
 
     def upload_files(self, remote_files):
+        """将本地文件上传到服务器"""
         file_num = len(self.local_files)
         self.upload_progress_max_value.emit(file_num)
         for i in range(file_num):

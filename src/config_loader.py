@@ -3,27 +3,12 @@ import os
 import yaml
 import shutil
 
+
 from pkg.utils.logger import get_logger
+from src.config_model import DEFAULT_CONFIG, AppConfigModel
 
 DEFAULT_CONFIG_PATH = os.path.join(
     os.environ['HOME'], '.config/obsidian-img-uploader')
-DEFAULT_CONFIG = {
-    'cos': {
-        'tencent': {
-            'bucket': 'obsidian',
-            'dir': 'obsidian',
-            'secret_id': 'xxx',
-            'secret_key': 'xxx'
-        }
-    },
-    'obsidian': {
-        'attachment_path': '/',
-        'note_default_path': '/',
-        'overwrite_suffix': '_new',
-        'recent_not_path': '/',
-        'vault_path': '/'
-    }
-}
 
 
 class ConfigLoader(object):
@@ -40,7 +25,7 @@ class ConfigLoader(object):
     def read_config(self):
         self.log.info(f'Read user config in {self.config_file}...')
         with open(self.config_file, 'r') as f:
-            self.config = yaml.safe_load(f)
+            self.config = AppConfigModel(**yaml.safe_load(f))
 
         return self.config
 
@@ -66,9 +51,10 @@ class ConfigLoader(object):
     def check_user_config(self, user_config_path):
         try:
             with open(user_config_path, 'r') as f:
-                uc = yaml.safe_load(f)
-                dc = copy.deepcopy(DEFAULT_CONFIG)
-                self.compare_dict_keys(dc, uc)
+                user_config = yaml.safe_load(f)
+                AppConfigModel(**user_config)
+                # dc = copy.deepcopy(DEFAULT_CONFIG)
+                # self.compare_dict_keys(dc, uc)
             return True
         except Exception as e:
             self.log.warning(f'check user config in {user_config_path} '

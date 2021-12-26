@@ -34,10 +34,10 @@ class SetupImageServerDialog(QDialog):
         secret_id_label = QLabel('腾讯云 SecretId:')
         secret_id_label.setFixedWidth(self.label_width)
         self.secret_id_lineedit = QLineEdit()
-        if self.config['cos']['tencent']['secret_id'] == 'xxx':
+        if self.config.cos.tencent.secret_id == 'xxx':
             self.secret_id_lineedit.setPlaceholderText('请配置腾讯云的SecretId')
         else:
-            self.secret_id_lineedit.setText(self.config['cos']['tencent']['secret_id'])
+            self.secret_id_lineedit.setText(self.config.cos.tencent.secret_id)
         self.secret_id_layout = QHBoxLayout()
         self.secret_id_layout.addWidget(secret_id_label)
         self.secret_id_layout.addWidget(self.secret_id_lineedit)
@@ -45,17 +45,17 @@ class SetupImageServerDialog(QDialog):
         secret_key_label = QLabel('腾讯云 SecretKey:')
         secret_key_label.setFixedWidth(self.label_width)
         self.secret_key_lineedit = QLineEdit()
-        if self.config['cos']['tencent']['secret_key'] == 'xxx':
+        if self.config.cos.tencent.secret_key == 'xxx':
             self.secret_key_lineedit.setPlaceholderText('请配置腾讯云的SecretKey')
         else:
-            self.secret_key_lineedit.setText(self.config['cos']['tencent']['secret_key'])
+            self.secret_key_lineedit.setText(self.config.cos.tencent.secret_key)
         self.secret_key_layout = QHBoxLayout()
         self.secret_key_layout.addWidget(secret_key_label)
         self.secret_key_layout.addWidget(self.secret_key_lineedit)
 
     def _init_connect_ui(self):
         self.check_connect_layout = QHBoxLayout()
-        connect_status_label = QLabel('腾讯云连接状态:')
+        connect_status_label = QLabel('腾讯云 连接状态:')
         connect_status_label.setFixedWidth(self.label_width)
         self.check_connect_btn = QPushButton('刷新')
         self.check_connect_btn.clicked.connect(self.check_connect)
@@ -87,22 +87,14 @@ class SetupImageServerDialog(QDialog):
         default_dir_layout.addStretch(1)
 
         self.select_layout = QVBoxLayout()
-        # self.select_layout.addWidget(default_bucket_label)
-        # self.select_layout.addWidget(self.select_bucket_box)
         self.select_layout.addLayout(default_bucket_layout)
         self.select_layout.addLayout(default_dir_layout)
-        # self.select_layout.addStretch(1)
-        # self.select_layout.addWidget(default_dir_label)
-        # self.select_layout.addWidget(self.select_folder_box)
         self.select_layout.addStretch(1)
 
     def _init_help_save_ui(self):
-        self.help_btn = QPushButton('?')
-        self.help_btn.clicked.connect(self.bucket_help_msg)
         self.apply_btn = QPushButton('保存并应用')
         self.apply_btn.clicked.connect(self.apply_changes)
         self.help_apply_layout = QHBoxLayout()
-        self.help_apply_layout.addWidget(self.help_btn)
         self.help_apply_layout.addStretch(1)
         self.help_apply_layout.addWidget(self.apply_btn)
 
@@ -128,18 +120,18 @@ class SetupImageServerDialog(QDialog):
 
     def check_connect(self):
         self.check_connect_label.setText('正在尝试连接到图床服务器，请等待...')
-        self.check_connect_label.setStyleSheet("QLabel { color : white; }")
+        self.check_connect_label.setStyleSheet("QLabel { color : #42a5f5; }")
         self.save_config()
         self.img_server.event_queue.put({'type': 'LIST_BUCKET', 'cos': 'tencent'})
 
     def set_check_connect_label(self, result, info):
         if result is True:
             self.check_connect_label.setText('已成功连接到图床服务器，同步功能可用')
-            self.check_connect_label.setStyleSheet("QLabel { color : green; }")
+            self.check_connect_label.setStyleSheet("QLabel { color : #66bb6a; }")
         else:
             self.log.error(f'cannot connect image server, REASON: {info}')
             self.check_connect_label.setText('无法连接到图床服务器，请检查网络连接或修改图床配置')
-            self.check_connect_label.setStyleSheet("QLabel { color : red; }")
+            self.check_connect_label.setStyleSheet("QLabel { color : #ef5350; }")
 
     def set_select_bucket_box(self, buckets):
         self.select_bucket_box.clear()
@@ -158,12 +150,6 @@ class SetupImageServerDialog(QDialog):
         for folder in dir_list:
             self.select_folder_box.addItem(folder)
         self.select_folder_box.setCurrentIndex(0)
-
-    def bucket_help_msg(self):
-        QMessageBox.warning(
-            self, "帮助",
-            "请注意，选择的存储桶的权限只有\"公有读私有写\"或者\"公有读写\"时，才能被公网访问",
-            QMessageBox.Yes)
 
     def apply_changes(self):
         self.save_config()

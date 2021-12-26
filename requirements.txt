@@ -1,6 +1,7 @@
 cos-python-sdk-v5
+loguru
 pyyaml
 pyinstaller
-loguru
 pyside6
 pyqtdarktheme
+pydantic

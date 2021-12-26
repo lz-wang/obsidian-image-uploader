@@ -25,7 +25,7 @@ class ObsidianImageUploader(QWidget):
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.read_config()
         self.overwrite = False
-        self.ob_valut_path = self.config['obsidian']['vault_path']
+        self.ob_valut_path = self.config.obsidian.vault_path
         self._init_ui()
         self.upload_thread = self._init_upload_thread()
         self.setup_img_dlg = SetupImageServerDialog()
@@ -34,9 +34,9 @@ class ObsidianImageUploader(QWidget):
 
     def _init_upload_thread(self):
         uploder = Uploader(
-            bucket_name=self.config['cos']['tencent']['bucket'],
+            bucket_name=self.config.cos.tencent.bucket,
             local_files=[],
-            remote_dir=self.config['cos']['tencent']['dir'] + '/'
+            remote_dir=self.config.cos.tencent.dir + '/'
         )
         # uploder.start()
         return uploder
@@ -64,7 +64,7 @@ class ObsidianImageUploader(QWidget):
         self.change_attachment_btn = QPushButton('配置Obsidian附件路径')
         self.change_attachment_btn.clicked.connect(self.change_ob_attachment_path)
         self.ob_attachment_path = QLineEdit()
-        self.ob_attachment_path.setText(self.config['obsidian']['attachment_path'])
+        self.ob_attachment_path.setText(self.config.obsidian.attachment_path)
         attachment_selecter_layout = QHBoxLayout()
         attachment_selecter_layout.addWidget(self.change_attachment_btn)
         attachment_selecter_layout.addWidget(self.ob_attachment_path)
@@ -105,7 +105,7 @@ class ObsidianImageUploader(QWidget):
         self.overwrite_checkbox.setCheckState(Qt.CheckState.Unchecked)
         self.overwrite_tip_lable = QLabel('        新文件后缀:')
         self.overwrite_suffix = QLineEdit()
-        self.overwrite_suffix.setText(self.config['obsidian']['overwrite_suffix'])
+        self.overwrite_suffix.setText(self.config.obsidian.overwrite_suffix)
         overwrite_layout.addWidget(self.overwrite_checkbox)
         overwrite_layout.addWidget(self.overwrite_tip_lable)
         overwrite_layout.addWidget(self.overwrite_suffix)
@@ -114,7 +114,7 @@ class ObsidianImageUploader(QWidget):
         self.import_ob_md_btn = QPushButton('选择Obsidian笔记文件')
         self.import_ob_md_btn.clicked.connect(self.import_ob_md_file)
         self.ob_md_file_path = QLineEdit()
-        self.ob_md_file_path.setText(self.config['obsidian']['note_default_path'])
+        self.ob_md_file_path.setText(self.config.obsidian.note_default_path)
         md_file_layout = QHBoxLayout()
         md_file_layout.addWidget(self.import_ob_md_btn)
         md_file_layout.addWidget(self.ob_md_file_path)
