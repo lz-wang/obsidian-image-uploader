@@ -1,7 +1,7 @@
 import time
 from queue import Queue
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
@@ -11,10 +11,10 @@ from src.config_loader import ConfigLoader
 
 class ImageServer(QThread):
     """上传一组文件到腾讯COS，与GUI联动的QT子线程类"""
-    tip_text = pyqtSignal(str)
-    bucket_list = pyqtSignal(list)
-    dir_list = pyqtSignal(list)
-    check_result = pyqtSignal(bool, str)
+    tip_text = Signal(str)
+    bucket_list = Signal(list)
+    dir_list = Signal(list)
+    check_result = Signal(bool, str)
 
     def __init__(self):
         super().__init__()

@@ -1,8 +1,8 @@
 import os
 import sys
 
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
     QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel, QMessageBox,
     QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QDialog,
     QComboBox)
@@ -102,7 +102,7 @@ class ObsidianImageUploader(QWidget):
         overwrite_layout = QHBoxLayout()
         self.overwrite_checkbox = QCheckBox('覆盖原始Obsidian文件')
         self.overwrite_checkbox.stateChanged.connect(self.need_overwrite)
-        self.overwrite_checkbox.setCheckState(False)
+        self.overwrite_checkbox.setCheckState(Qt.CheckState.Unchecked)
         self.overwrite_tip_lable = QLabel('        新文件后缀:')
         self.overwrite_suffix = QLineEdit()
         self.overwrite_suffix.setText(self.config['obsidian']['overwrite_suffix'])

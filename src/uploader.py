@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from queue import Queue
 
-from PyQt5.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
@@ -12,11 +12,11 @@ from src.config_loader import ConfigLoader
 
 class Uploader(QThread):
     """上传一组文件到腾讯COS，与GUI联动的QT子线程类"""
-    upload_progress_max_value = pyqtSignal(int)
-    upload_progress_value = pyqtSignal(int)
-    console_log_text = pyqtSignal(str)
-    files_url = pyqtSignal(dict)
-    check_result = pyqtSignal(str)
+    upload_progress_max_value = Signal(int)
+    upload_progress_value = Signal(int)
+    console_log_text = Signal(str)
+    files_url = Signal(dict)
+    check_result = Signal(str)
 
     def __init__(self, bucket_name: str, local_files: list, remote_dir: str):
         """init"""
