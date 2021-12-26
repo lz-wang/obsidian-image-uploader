@@ -37,7 +37,7 @@ class ImageServer(QThread):
         else:
             raise TypeError(f'Unknown cos type: {cos_type}')
 
-    def list_files(self, bucket_name):
+    def list_dirs(self, bucket_name):
         """连接到腾讯COS，获取存储桶文件夹列表"""
         if not bucket_name:
             self.dir_list.emit([])
@@ -45,14 +45,7 @@ class ImageServer(QThread):
             self.dir_list.emit([])
 
         cos_bucket = TencentCosBucket(self.cos, bucket_name)
-        contents = cos_bucket.list_objects()
-        folders = []
-        for c in contents:
-            if '/' not in c:
-                continue
-            else:
-                folders.append('/'.join(c.split('/')[:-1]))
-        self.dir_list.emit(list(set(folders)))
+        self.dir_list.emit(cos_bucket.list_dirs())
 
     def run(self):
         while True:
@@ -63,6 +56,6 @@ class ImageServer(QThread):
                 if event['type'] == 'LIST_BUCKET':
                     self.list_bucket(event['cos'])
                 elif event['type'] == 'LIST_FILES':
-                    self.list_files(event['bucket'])
+                    self.list_dirs(event['bucket'])
                 else:
                     raise TypeError(f'Unknown event: {event}')

@@ -46,6 +46,17 @@ class TencentCosBucket(object):
             self.log.warning(f'在cos桶{self.name}上找不到任何对象')
             return []
 
+    def list_dirs(self):
+        """列出远程目录"""
+        contents = self.list_objects()
+        dirs = []
+        for c in contents:
+            if '/' not in c:
+                continue
+            else:
+                dirs.append('/'.join(c.split('/')[:-1]))
+        return list(set(dirs))
+
     def upload_object(self, local_path, remote_path: str = '', overwrite=True):
         """上传单个对象"""
         object_key = local_path.split('/')[-1]

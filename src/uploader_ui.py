@@ -14,6 +14,7 @@ from src.obsidian import find_ob_imgs, update_ob_file
 from src.uploader import Uploader
 from src.config_loader import ConfigLoader
 from src.img_server_ui import SetupImageServerDialog
+from src.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
 
 
@@ -37,7 +38,7 @@ class ObsidianImageUploader(QWidget):
         uploder = Uploader(
             bucket_name=self.config.cos.tencent.bucket,
             local_files=[],
-            remote_dir=self.config.cos.tencent.dir + '/'
+            remote_dir=self.config.cos.tencent.dir
         )
         # uploder.start()
         return uploder
@@ -189,10 +190,10 @@ class ObsidianImageUploader(QWidget):
         dlg_open_path = QFileDialog()
         path = os.environ['HOME']
         try:
-            path = dlg_open_path.getExistingDirectory(caption="选取Obsidian附件", directory=path)
+            path = dlg_open_path.getExistingDirectory(caption="选取Obsidian附件", dir=path)
         except Exception as e:
             self.log.error(e)
-        self.config.obsidian.attachment_path = path
+        self.config.obsidian.attachment_path = path if path else self.config.obsidian.attachment_path
         self.config_loader.update_config(self.config)
         self.ob_attachment_path.setText(path)
 
@@ -252,20 +253,30 @@ class ObsidianImageUploader(QWidget):
 
     def try_connect_img_server(self):
         try:
-            self.upload_thread.connect_bucket()
-            self.check_img_server_label.setText(
-                '已成功连接到图床服务器，同步功能可用')
-            self.check_img_server_label.setStyleSheet(
-                "QLabel { color : green; }")
+            self.config = self.config_loader.read_config()
+            self.check_img_server_label.setText('正在尝试连接到图床服务器，请等待...')
+            self.check_img_server_label.setStyleSheet("QLabel { color : #42a5f5; }")
+            self.upload_thread.bucket_name = self.config.cos.tencent.bucket
+            self.upload_thread.remote_dir = self.config.cos.tencent.dir
+            self.upload_thread.connect_bucket_dir()
+            self.check_img_server_label.setText('已成功连接到图床服务器，同步功能可用')
+            self.check_img_server_label.setStyleSheet("QLabel { color : #66bb6a; }")
             self.enable_all_func_btn()
             self.upload_thread.start()
         except Exception as e:
             self.log.error(f'cannot connect image server, REASON: {str(e)}')
             self.log.error(traceback.format_exc())
-            self.check_img_server_label.setText(
-                '无法连接到图床服务器，请检查网络连接或修改图床配置')
-            self.check_img_server_label.setStyleSheet(
-                "QLabel { color : red; }")
+            if isinstance(e, CosBucketNotFoundError):
+                self.check_img_server_label.setText(
+                    f'网络正常，但无法在图床服务器找到存储桶\"{self.config.cos.tencent.bucket}\"，请修改图床配置')
+            elif isinstance(e, CosBucketDirNotFoundError):
+                self.check_img_server_label.setText(
+                    f'网络正常，但无法在图床服务器存储桶\"{self.config.cos.tencent.bucket}\"中'
+                    f'找到文件夹\"{self.config.cos.tencent.dir}\"，请修改图床配置')
+            else:
+                self.check_img_server_label.setText(
+                    '无法连接到图床服务器，请检查网络连接或修改图床服务器配置')
+            self.check_img_server_label.setStyleSheet("QLabel { color : #ef5350; }")
             self.disable_all_func_btn()
 
     def disable_all_func_btn(self):

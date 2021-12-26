@@ -27,7 +27,7 @@ class SetupImageServerDialog(QDialog):
         self.combox_width = 160
         self._init_secret_id_key_ui()
         self._init_connect_ui()
-        self._init_help_save_ui()
+        self._init_close_ui()
         self._init_global_ui()
 
     def _init_secret_id_key_ui(self):
@@ -36,8 +36,6 @@ class SetupImageServerDialog(QDialog):
         self.secret_id_lineedit = QLineEdit()
         if self.config.cos.tencent.secret_id == 'xxx':
             self.secret_id_lineedit.setPlaceholderText('请配置腾讯云的SecretId')
-        else:
-            self.secret_id_lineedit.setText(self.config.cos.tencent.secret_id)
         self.secret_id_layout = QHBoxLayout()
         self.secret_id_layout.addWidget(secret_id_label)
         self.secret_id_layout.addWidget(self.secret_id_lineedit)
@@ -45,10 +43,9 @@ class SetupImageServerDialog(QDialog):
         secret_key_label = QLabel('腾讯云 SecretKey:')
         secret_key_label.setFixedWidth(self.label_width)
         self.secret_key_lineedit = QLineEdit()
+        self.secret_key_lineedit.setEchoMode(QLineEdit.PasswordEchoOnEdit)
         if self.config.cos.tencent.secret_key == 'xxx':
             self.secret_key_lineedit.setPlaceholderText('请配置腾讯云的SecretKey')
-        else:
-            self.secret_key_lineedit.setText(self.config.cos.tencent.secret_key)
         self.secret_key_layout = QHBoxLayout()
         self.secret_key_layout.addWidget(secret_key_label)
         self.secret_key_layout.addWidget(self.secret_key_lineedit)
@@ -71,22 +68,22 @@ class SetupImageServerDialog(QDialog):
         self.select_bucket_box.currentTextChanged.connect(self.select_folder)
         self.select_bucket_box.setMinimumWidth(150)
         self.select_bucket_box.setToolTip('⚠️ 存储桶必须为\"公有读"权限时，才能被公网访问')
-        config_bucket_label = QLabel(f'(当前配置存储桶: {self.config.cos.tencent.bucket[:15]})')
+        self.config_bucket_label = QLabel()
         default_bucket_layout = QHBoxLayout()
         default_bucket_layout.addWidget(default_bucket_label)
         default_bucket_layout.addWidget(self.select_bucket_box)
-        default_bucket_layout.addWidget(config_bucket_label)
+        default_bucket_layout.addWidget(self.config_bucket_label)
         default_bucket_layout.addStretch(1)
 
         default_dir_label = QLabel('选择默认存储目录:')
         default_dir_label.setFixedWidth(self.label_width)
-        self.select_folder_box = QComboBox()
-        self.select_folder_box.setMinimumWidth(150)
-        config_dir_label = QLabel(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
+        self.select_dir_box = QComboBox()
+        self.select_dir_box.setMinimumWidth(150)
+        self.config_dir_label = QLabel()
         default_dir_layout = QHBoxLayout()
         default_dir_layout.addWidget(default_dir_label)
-        default_dir_layout.addWidget(self.select_folder_box)
-        default_dir_layout.addWidget(config_dir_label)
+        default_dir_layout.addWidget(self.select_dir_box)
+        default_dir_layout.addWidget(self.config_dir_label)
         default_dir_layout.addStretch(1)
 
         self.select_layout = QVBoxLayout()
@@ -94,7 +91,7 @@ class SetupImageServerDialog(QDialog):
         self.select_layout.addLayout(default_dir_layout)
         self.select_layout.addStretch(1)
 
-    def _init_help_save_ui(self):
+    def _init_close_ui(self):
         self.apply_btn = QPushButton('保存并应用')
         self.apply_btn.clicked.connect(self.apply_changes)
         self.help_apply_layout = QHBoxLayout()
@@ -111,6 +108,7 @@ class SetupImageServerDialog(QDialog):
         global_layout.addLayout(self.help_apply_layout)
         self.setLayout(global_layout)
         self.setWindowTitle('配置图床服务器')
+        self.refresh_ui_from_config()
         self.setFixedSize(600, 300)
 
     def _init_img_server(self):
@@ -122,9 +120,10 @@ class SetupImageServerDialog(QDialog):
         self.img_server.start()
 
     def check_connect(self):
+        self.config = self.config_loader.read_config()
+        self.refresh_ui_from_config()
         self.check_connect_label.setText('正在尝试连接到图床服务器，请等待...')
         self.check_connect_label.setStyleSheet("QLabel { color : #42a5f5; }")
-        self.save_config()
         self.img_server.event_queue.put({'type': 'LIST_BUCKET', 'cos': 'tencent'})
 
     def set_check_connect_label(self, result, info):
@@ -136,11 +135,18 @@ class SetupImageServerDialog(QDialog):
             self.check_connect_label.setText('无法连接到图床服务器，请检查网络连接或修改图床配置')
             self.check_connect_label.setStyleSheet("QLabel { color : #ef5350; }")
 
-    def set_select_bucket_box(self, buckets):
+    def set_select_bucket_box(self, buckets: list):
+        self.log.info(f'Receive bucket list: {buckets}')
         self.select_bucket_box.clear()
+        if self.config.cos.tencent.bucket in buckets:
+            self.select_bucket_box.addItem(self.config.cos.tencent.bucket)
+            self.select_bucket_box.setCurrentText(self.config.cos.tencent.bucket)
+            buckets.remove(self.config.cos.tencent.bucket)
+        else:
+            self.log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default now.')
+            self.select_bucket_box.setCurrentIndex(0)
         for bucket in buckets:
             self.select_bucket_box.addItem(bucket)
-        self.select_bucket_box.setCurrentIndex(0)
 
     def select_folder(self):
         bucket_name = self.select_bucket_box.currentText()
@@ -149,18 +155,27 @@ class SetupImageServerDialog(QDialog):
         self.img_server.event_queue.put({'type': 'LIST_FILES', 'bucket': bucket_name})
 
     def set_select_folder_box(self, dir_list):
-        self.select_folder_box.clear()
+        self.select_dir_box.clear()
         for folder in dir_list:
-            self.select_folder_box.addItem(folder)
-        self.select_folder_box.setCurrentIndex(0)
+            self.select_dir_box.addItem(folder)
+        self.select_dir_box.setCurrentIndex(0)
 
     def apply_changes(self):
-        self.save_config()
+        self.save_config_from_ui()
         self.config_saved.emit(True)
         self.close()
 
-    def save_config(self):
+    def save_config_from_ui(self):
         self.config.cos.tencent.secret_id = self.secret_id_lineedit.text()
         self.config.cos.tencent.secret_key = self.secret_key_lineedit.text()
+        self.config.cos.tencent.bucket = self.select_bucket_box.currentText()
+        self.config.cos.tencent.dir = self.select_dir_box.currentText()
         self.config_loader.update_config(self.config)
         self.log.info('Config Saved Success')
+
+    def refresh_ui_from_config(self):
+        self.secret_id_lineedit.setText(self.config.cos.tencent.secret_id)
+        self.secret_key_lineedit.setText(self.config.cos.tencent.secret_key)
+        self.config_bucket_label.setText(f'(当前配置存储桶: {self.config.cos.tencent.bucket[:15]})')
+        self.config_dir_label.setText(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
+

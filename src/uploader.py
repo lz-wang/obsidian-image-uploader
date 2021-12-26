@@ -7,7 +7,9 @@ from PySide6.QtCore import QThread, Signal
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
+from pkg.utils.logger import get_logger
 from src.config_loader import ConfigLoader
+from src.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 
 
 class Uploader(QThread):
@@ -21,6 +23,7 @@ class Uploader(QThread):
     def __init__(self, bucket_name: str, local_files: list, remote_dir: str):
         """init"""
         super(Uploader, self).__init__()
+        self.log = get_logger()
         self.cos = None
         self.bucket = None
         self.bucket_name = bucket_name
@@ -29,12 +32,16 @@ class Uploader(QThread):
         self.file_url_dict = {file: None for file in self.local_files}
         self.event_queue = Queue()
 
-    def connect_bucket(self):
-        """连接到腾讯COS，获取存储桶信息，如果桶不存在则创建"""
+    def connect_bucket_dir(self):
+        """连接到腾讯COS，获取存储桶信息"""
         self.connect_server()
         if self.bucket_name not in self.cos.list_buckets():
-            self.cos.create_bucket(self.bucket_name)
+            raise CosBucketNotFoundError(f'找不到存储桶: {self.bucket_name}')
         self.bucket = TencentCosBucket(self.cos, self.bucket_name)
+        self.log.info(f'remote_dir -> {self.remote_dir}')
+        self.log.info(f'list dir -> {self.bucket.list_dirs()}')
+        if self.remote_dir not in self.bucket.list_dirs():
+            raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
     def connect_server(self):
         """连接到腾讯COS，获取存储桶信息"""
@@ -45,12 +52,12 @@ class Uploader(QThread):
 
     def _get_remote_files(self):
         if self.bucket is None:
-            self.connect_bucket()
+            self.connect_bucket_dir()
         return self.bucket.list_objects(prefix=self.remote_dir)
 
     def run(self):
         """启动子线程，将文件上传到COS，同时发送信号到GUI"""
-        self.connect_bucket()
+        self.connect_bucket_dir()
         while True:
             time.sleep(0.1)
             if self.event_queue.qsize() > 0:
@@ -95,8 +102,8 @@ class Uploader(QThread):
                 msg += f'(远程已存在)本地文件: {file_path} \n    '
             else:
                 msg += f'(上传成功)本地文件: {file_path} \n    '
-                self.bucket.upload_object(local_path=file_path, remote_path=self.remote_dir)
-            file_url = self.bucket.get_object_url(remote_path=self.remote_dir, object_key=file_name)
+                self.bucket.upload_object(local_path=file_path, remote_path=self.remote_dir+'/')
+            file_url = self.bucket.get_object_url(remote_path=self.remote_dir+'/', object_key=file_name)
             msg += f'远程URL: {file_url}'
             self.file_url_dict[file_path] = file_url
             self.console_log_text.emit(msg)
