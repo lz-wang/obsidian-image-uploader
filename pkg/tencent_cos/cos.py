@@ -1,16 +1,14 @@
-from qcloud_cos import CosConfig
-from qcloud_cos import CosS3Client
-from qcloud_cos import CosServiceError
+from qcloud_cos import CosConfig, CosS3Client, CosServiceError
+
 from pkg.utils.logger import get_logger
 
 
 class TencentCos(object):
-    """腾讯云COS接口类封装。
+    """腾讯云COS接口类封装
     参考：https://cloud.tencent.com/document/product/436/12269
     """
 
-    def __init__(self, secret_id: str, secret_key: str,
-                 region: str = 'ap-chengdu'):
+    def __init__(self, secret_id: str, secret_key: str, region: str = 'ap-chengdu'):
         """secret_id和secret_key获取参考：
         https://console.cloud.tencent.com/cam/capi"""
         self.log = get_logger(f'{self.__class__.__name__}')
@@ -21,6 +19,7 @@ class TencentCos(object):
         self._bucket_suffix = self.get_suffix_id()
 
     def connect_client(self, region=None):
+        """连接到COS服务"""
         cos_region = self.region if region is None else region
         cos_config = CosConfig(SecretId=self.secret_id, SecretKey=self.secret_key,
                                Region=cos_region, Token=None, Scheme='https')
@@ -40,9 +39,9 @@ class TencentCos(object):
     def create_bucket(self, bucket_name):
         """创建新的cos桶"""
         # 检查是否已存在此cos桶
-        before_created = self.list_buckets()
-        if bucket_name in before_created:
-            return False, f'{bucket_name} 已存在于现有存储桶列表({", ".join(before_created)})'
+        if self.check_bucket_exists(bucket_name):
+            return False, f'Bucket {bucket_name} already exists，' \
+                          f'current bucket list -> ({", ".join(self.list_buckets())})'
 
         try:
             self.client.create_bucket(self._fmt_b_name(bucket_name))
@@ -52,19 +51,32 @@ class TencentCos(object):
         # 检测是否新建桶成功
         after_created = self.list_buckets()
         if bucket_name in after_created:
-            return True, f'创建桶{bucket_name}成功，现有存储桶列表({", ".join(after_created)})'
+            return True, f'Create bucket {bucket_name} success，' \
+                         f'current bucket list -> ({", ".join(after_created)})'
 
     def delete_bucket(self, bucket_name):
         """删除空的cos桶"""
         try:
             self.client.delete_bucket(Bucket=self._fmt_b_name(bucket_name))
+            success_msg = f'Delete bucket {bucket_name} success, ' \
+                          f'current bucket list -> ({", ".join(self.list_buckets())})'
+            self.log.info(success_msg)
+            return True, success_msg
         except CosServiceError as e:
-            return False, e.get_error_code()
+            err_msg = f'Delete bucket {bucket_name} failed，detail: {e.get_error_code()}'
+            self.log.error(err_msg)
+            return False, err_msg
         except Exception as e:
-            return False, str(e)
-        return True, f'删除桶{bucket_name}成功，现有存储桶列表({", ".join(self.list_buckets())})'
+            err_msg = f'Delete bucket {bucket_name} failed，detail: {str(e)}'
+            self.log.error(err_msg)
+            return False, err_msg
+
+    def check_bucket_exists(self, bucket_name: str):
+        """检查cos桶是否存在"""
+        return self.client.bucket_exists(self._fmt_b_name(bucket_name))
 
     def _fmt_b_name(self, bucket_name):
+        """归一化cos桶名称为带后缀形式"""
         return bucket_name + '-' + self._bucket_suffix
 
     def rebuild_bucket(self, bucket_name):

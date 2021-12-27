@@ -148,3 +148,4 @@ cython_debug/
 /config_bak.yaml
 /log/
 /pkg/utils/file_compare.py
+/test/
