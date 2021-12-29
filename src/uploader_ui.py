@@ -81,7 +81,8 @@ class ObsidianImageUploader(QWidget):
         self.check_result = QLabel('尚未检查过同步状态')
         self.check_sync_status_btn.clicked.connect(self.check_sync_status)
         self.enable_md5_check_checkbox = QCheckBox('检查文件完整性')
-        self.enable_md5_check_checkbox.setToolTip('警告: 开启此项将耗费较多流量且速度下降')
+        self.enable_md5_check_checkbox.setToolTip(
+            '如果开启此项:\n(1)将耗费较多流量且检查同步速度下降\n(2)同步时默认覆盖文件名一致但完整性校验失败的文件')
         self.enable_md5_check_checkbox.setChecked(Qt.CheckState.Unchecked)
         self.enable_md5_check_checkbox.stateChanged.connect(self.show_md5_check_status)
         check_layout.addWidget(self.check_sync_status_btn)
@@ -153,10 +154,7 @@ class ObsidianImageUploader(QWidget):
         self.setWindowTitle('Obsidian图片工具箱')
 
     def check_sync_status(self):
-        file_names = os.listdir(self.ob_attachment_path.text())
-        self.upload_thread.local_files = [os.path.join(self.ob_attachment_path.text(), file)
-                                          for file in file_names]
-        reconnect(self.upload_thread.console_log_text, self.update_console)
+        self.reset_upload_params()
         reconnect(self.upload_thread.check_result, self.update_check_result)
         self.upload_thread.event_queue.put('CHECK')
 
@@ -164,13 +162,17 @@ class ObsidianImageUploader(QWidget):
         self.check_result.setText(check_result)
 
     def sync_all_image(self):
-        file_names = os.listdir(self.ob_attachment_path.text())
-        self.upload_thread.local_files = [os.path.join(self.ob_attachment_path.text(), file)
-                                          for file in file_names]
-        reconnect(self.upload_thread.console_log_text, self.update_console)
+        self.reset_upload_params()
         reconnect(self.upload_thread.upload_progress_max_value, self.update_sync_p_bar_max_value)
         reconnect(self.upload_thread.upload_progress_value, self.update_sync_p_bar_value)
         self.upload_thread.event_queue.put('UPLOAD')
+
+    def reset_upload_params(self):
+        file_names = os.listdir(self.ob_attachment_path.text())
+        self.upload_thread.local_files = [os.path.join(self.ob_attachment_path.text(), file)
+                                          for file in file_names]
+        self.upload_thread.check_md5 = self.enable_md5_check_checkbox.isChecked()
+        reconnect(self.upload_thread.console_log_text, self.update_console)
 
     def update_sync_p_bar_max_value(self, max_value):
         self.sync_progress_bar.setMaximum(max_value)

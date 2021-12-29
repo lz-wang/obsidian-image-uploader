@@ -31,6 +31,7 @@ class Uploader(QThread):
         self.local_files = local_files
         self.remote_dir = remote_dir
         self.check_md5 = False
+        self.last_checked_synced_files = []
         self.file_url_dict = {file: None for file in self.local_files}
         self.event_queue = Queue()
 
@@ -53,6 +54,7 @@ class Uploader(QThread):
         """连接到腾讯COS，获取存储桶信息"""
         self.connect_bucket()
         bucket_dirs = self.bucket.list_dirs()
+        bucket_dirs = [''] if not bucket_dirs else bucket_dirs
         self.log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
         if self.remote_dir not in bucket_dirs:
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
@@ -72,7 +74,7 @@ class Uploader(QThread):
                 if event == 'UPLOAD':
                     self.upload_files(remote_files)
                 elif event == 'CHECK':
-                    self.check_files()
+                    self.check_files(remote_files)
                 else:  # ignore
                     pass
 
@@ -89,33 +91,44 @@ class Uploader(QThread):
             return False, f'文件{local_file}的MD5哈希校验不通过，远程存在同名文件'
         return True, ''
 
-    def check_files(self):
+    def check_files(self, remote_files):
         """检查文件同步状态"""
         self.console_log_text.emit('正在检查文件同步状态：')
-        synced_files = []
         has_not_synced = False
-        remote_files = self._get_remote_files()
-        for local_file in self.local_files:
+        for i in range(len(self.local_files)):
+            local_file = self.local_files[i]
             local_file_name = local_file.split("/")[-1]
-            if self.check_md5 is True:
-                sync_status, err_msg = self.check_file(local_file)
-            else:
-                sync_status = bool(local_file_name in remote_files)
+            check_msg = f'[{i+1}/{len(self.local_files)}] '
+            # 检查文件是否存在于远端
+            if local_file_name not in remote_files:
+                sync_status = False
                 err_msg = '' if sync_status else \
-                    f'在存储桶{self.bucket_name}的{self.remote_dir}目录中找不到{local_file_name}文件'
+                    f'警告: 在存储桶{self.bucket_name}的{self.remote_dir}' \
+                    f'目录中找不到{local_file_name}文件'
+            else:  # 如果开启MD5校验则检查MD5
+                if self.check_md5 is True:
+                    sync_status, err_msg = self.check_file(local_file)
+                else:
+                    sync_status, err_msg = True, ''
+
             if sync_status is False:
-                self.console_log_text.emit(f'警告: {err_msg}')
+                check_msg += err_msg
                 has_not_synced = True
             else:
-                self.console_log_text.emit(f'文件已同步: {local_file_name} ')
-                synced_files.append(local_file)
+                check_msg += f'文件已同步: {local_file_name}'
+                self.last_checked_synced_files.append(local_file)
+
+            self.check_result.emit(check_msg)
+            self.console_log_text.emit(check_msg)
+
         if not has_not_synced:
             self.console_log_text.emit('全部文件已同步!')
         else:
-            self.console_log_text.emit(f'已同步文件数目: {len(synced_files)}/{len(self.local_files)}')
+            self.console_log_text.emit(
+                f'已同步文件数目: {len(self.last_checked_synced_files)}/{len(self.local_files)}')
 
         current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        self.check_result.emit(f'已同步{len(synced_files)}/{len(self.local_files)}, '
+        self.check_result.emit(f'已同步{len(self.last_checked_synced_files)}/{len(self.local_files)}, '
                                f'检查时间{current_time}')
 
     def upload_files(self, remote_files):
@@ -124,18 +137,35 @@ class Uploader(QThread):
         self.upload_progress_max_value.emit(file_num)
         for i in range(file_num):
             msg = ''
-            file_path = self.local_files[i]
-            file_name = file_path.split('/')[-1]
+            local_file = self.local_files[i]
+            file_name = local_file.split('/')[-1]
             msg += f'正在上传文件({i+1}/{file_num})\n    '
-            assert os.path.isfile(file_path), f'can not find file {file_path}!'
-            if file_name in remote_files:
-                msg += f'(远程已存在)本地文件: {file_path} \n    '
+            assert os.path.isfile(local_file), f'can not find file {local_file}!'
+
+            # 如果远端没有此文件，直接上传
+            if file_name not in remote_files:
+                self.bucket.upload_object(local_path=local_file, remote_path=self.remote_dir + '/')
+                msg += f'(上传成功)本地文件: {local_file} \n    '
             else:
-                msg += f'(上传成功)本地文件: {file_path} \n    '
-                self.bucket.upload_object(local_path=file_path, remote_path=self.remote_dir+'/')
+                # 如果没有开启MD5校验，跳过上传
+                if self.check_md5 is False:
+                    msg += f'(远程已存在)本地文件: {local_file} \n    '
+                else:
+                    # 如果开启MD5校验，且上次检查同步的结果还在，直接从缓存读取
+                    if local_file in self.last_checked_synced_files:
+                        msg += f'(远程已存在)本地文件: {local_file} \n    '
+                    # 否则重新校验文件，耗时较长
+                    else:
+                        sync_status, err_msg = self.check_file(local_file)
+                        if sync_status:  # 校验成功，跳过上传
+                            msg += f'(远程已存在)本地文件: {local_file} \n    '
+                        else:  # 校验失败，覆盖式上传
+                            self.log.warning(err_msg)
+                            self.bucket.upload_object(local_path=local_file, remote_path=self.remote_dir + '/')
+                            msg += f'(上传覆盖成功)本地文件: {local_file} \n    '
             file_url = self.bucket.get_object_url(remote_path=self.remote_dir+'/', object_key=file_name)
             msg += f'远程URL: {file_url}'
-            self.file_url_dict[file_path] = file_url
+            self.file_url_dict[local_file] = file_url
             self.console_log_text.emit(msg)
             self.upload_progress_value.emit(i+1)
         self.files_url.emit(self.file_url_dict)
