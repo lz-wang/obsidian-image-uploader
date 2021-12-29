@@ -148,7 +148,9 @@ class ObsidianImageUploader(QWidget):
         self.setWindowTitle('Obsidian图片工具箱')
 
     def check_sync_status(self):
-        self.upload_thread.local_files = os.listdir(self.ob_attachment_path.text())
+        file_names = os.listdir(self.ob_attachment_path.text())
+        self.upload_thread.local_files = [os.path.join(self.ob_attachment_path.text(), file)
+                                          for file in file_names]
         reconnect(self.upload_thread.console_log_text, self.update_console)
         reconnect(self.upload_thread.check_result, self.update_check_result)
         self.upload_thread.event_queue.put('CHECK')

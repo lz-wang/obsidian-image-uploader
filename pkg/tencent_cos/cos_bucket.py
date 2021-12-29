@@ -149,6 +149,12 @@ class TencentCosBucket(object):
             self.delete_object(file_path, file_name)
         self.log.warning(f'Bucket {self.name} all files has been deleted')
 
+    def is_object_exists(self, object_full_path: str):
+        return self.cos.client.object_exists(
+            Bucket=self.full_name,
+            Key=object_full_path
+        )
+
     def get_object_md5hash(self, object_full_path: str):
         """获取文件md5哈希值 https://cloud.tencent.com/document/product/436/36427"""
         response = self._get_object_info(object_full_path)

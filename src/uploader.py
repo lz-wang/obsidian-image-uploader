@@ -8,6 +8,7 @@ from PySide6.QtCore import QThread, Signal
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
 from pkg.utils.logger import get_logger
+from pkg.utils.file_tools import get_file_md5sum
 from src.config_loader import ConfigLoader
 from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 
@@ -32,28 +33,31 @@ class Uploader(QThread):
         self.file_url_dict = {file: None for file in self.local_files}
         self.event_queue = Queue()
 
-    def connect_bucket_dir(self):
+    def connect_server(self):
         """连接到腾讯COS，获取存储桶信息"""
+        if not isinstance(self.cos, TencentCos):
+            config = ConfigLoader().read_config()
+            secret_id = config.cos.tencent.secret_id
+            secret_key = config.cos.tencent.secret_key
+            self.cos = TencentCos(secret_id, secret_key)
+
+    def connect_bucket(self):
+        """连接到COS存储桶"""
         self.connect_server()
         if self.bucket_name not in self.cos.list_buckets():
             raise CosBucketNotFoundError(f'找不到存储桶: {self.bucket_name}')
         self.bucket = TencentCosBucket(self.cos, self.bucket_name)
+
+    def connect_bucket_dir(self):
+        """连接到腾讯COS，获取存储桶信息"""
+        self.connect_bucket()
         bucket_dirs = self.bucket.list_dirs()
         self.log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
         if self.remote_dir not in bucket_dirs:
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
-    def connect_server(self):
-        """连接到腾讯COS，获取存储桶信息"""
-        config = ConfigLoader().read_config()
-        secret_id = config.cos.tencent.secret_id
-        secret_key = config.cos.tencent.secret_key
-        self.cos = TencentCos(secret_id, secret_key)
-
     def _get_remote_files(self):
-        if self.bucket is None:
-            self.connect_bucket_dir()
-        assert isinstance(self.bucket, TencentCosBucket)
+        self.connect_bucket()
         return self.bucket.list_dir_files(self.remote_dir)
 
     def run(self):
@@ -71,23 +75,41 @@ class Uploader(QThread):
                 else:  # ignore
                     pass
 
-    def check_files(self, remote_files):
+    def check_file(self, local_file: str):
+        """校验是否有相同文件已存在于cos指定文件夹上"""
+        self.connect_bucket()
+        assert isinstance(self.bucket, TencentCosBucket)
+        remote_file_path = self.remote_dir+'/'+local_file.split('/')[-1]
+        if not self.bucket.is_object_exists(remote_file_path):
+            return False, f'在存储桶{self.bucket_name}的{self.remote_dir}目录中找不到{local_file}文件'
+        local_file_md5 = get_file_md5sum(local_file)
+        remote_file_md5 = self.bucket.get_object_md5hash(remote_file_path)
+        if local_file_md5 != remote_file_md5:
+            return False, f'文件{local_file}的MD5哈希校验不通过，远程存在同名文件'
+        return True, ''
+
+    def check_files(self, remote_files: list):
         """检查文件同步状态"""
-        # TODO: 根据文件的hash值和filename共同校验
-        synced_files = [f for f in self.local_files if f.split('/')[-1] in remote_files]
-        msg = '正在检查文件同步状态：'
+        self.console_log_text.emit('正在检查文件同步状态：')
+        synced_files = []
         has_not_synced = False
-        for f in self.local_files:
-            if f not in synced_files:
-                msg += f'\n发现未同步文件: {f}'
+        print(self.local_files)
+        for local_file in self.local_files:
+            sync_status, err_msg = self.check_file(local_file)
+            if sync_status is False:
+                self.console_log_text.emit(f'警告: {err_msg}')
                 has_not_synced = True
+            else:
+                self.console_log_text.emit(f'文件已同步: {local_file.split("/")[-1]} ')
+                synced_files.append(local_file)
         if not has_not_synced:
-            msg += f'全部文件已同步！'
-        self.console_log_text.emit(msg)
+            self.console_log_text.emit('全部文件已同步!')
+        else:
+            self.console_log_text.emit(f'已同步文件数目: {len(synced_files)}/{len(self.local_files)}')
+
         current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.check_result.emit(f'已同步{len(synced_files)}/{len(self.local_files)}, '
                                f'检查时间{current_time}')
-        return
 
     def upload_files(self, remote_files):
         """将本地文件上传到服务器"""
