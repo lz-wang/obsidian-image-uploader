@@ -30,6 +30,7 @@ class Uploader(QThread):
         self.bucket_name = bucket_name
         self.local_files = local_files
         self.remote_dir = remote_dir
+        self.check_md5 = False
         self.file_url_dict = {file: None for file in self.local_files}
         self.event_queue = Queue()
 
@@ -71,7 +72,7 @@ class Uploader(QThread):
                 if event == 'UPLOAD':
                     self.upload_files(remote_files)
                 elif event == 'CHECK':
-                    self.check_files(remote_files)
+                    self.check_files()
                 else:  # ignore
                     pass
 
@@ -88,19 +89,25 @@ class Uploader(QThread):
             return False, f'文件{local_file}的MD5哈希校验不通过，远程存在同名文件'
         return True, ''
 
-    def check_files(self, remote_files: list):
+    def check_files(self):
         """检查文件同步状态"""
         self.console_log_text.emit('正在检查文件同步状态：')
         synced_files = []
         has_not_synced = False
-        print(self.local_files)
+        remote_files = self._get_remote_files()
         for local_file in self.local_files:
-            sync_status, err_msg = self.check_file(local_file)
+            local_file_name = local_file.split("/")[-1]
+            if self.check_md5 is True:
+                sync_status, err_msg = self.check_file(local_file)
+            else:
+                sync_status = bool(local_file_name in remote_files)
+                err_msg = '' if sync_status else \
+                    f'在存储桶{self.bucket_name}的{self.remote_dir}目录中找不到{local_file_name}文件'
             if sync_status is False:
                 self.console_log_text.emit(f'警告: {err_msg}')
                 has_not_synced = True
             else:
-                self.console_log_text.emit(f'文件已同步: {local_file.split("/")[-1]} ')
+                self.console_log_text.emit(f'文件已同步: {local_file_name} ')
                 synced_files.append(local_file)
         if not has_not_synced:
             self.console_log_text.emit('全部文件已同步!')

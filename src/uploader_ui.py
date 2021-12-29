@@ -80,9 +80,14 @@ class ObsidianImageUploader(QWidget):
         self.check_sync_status_btn = QPushButton('检查同步状态')
         self.check_result = QLabel('尚未检查过同步状态')
         self.check_sync_status_btn.clicked.connect(self.check_sync_status)
+        self.enable_md5_check_checkbox = QCheckBox('检查文件完整性')
+        self.enable_md5_check_checkbox.setToolTip('警告: 开启此项将耗费较多流量且速度下降')
+        self.enable_md5_check_checkbox.setChecked(Qt.CheckState.Unchecked)
+        self.enable_md5_check_checkbox.stateChanged.connect(self.show_md5_check_status)
         check_layout.addWidget(self.check_sync_status_btn)
         check_layout.addWidget(self.check_result)
         check_layout.addStretch(1)
+        check_layout.addWidget(self.enable_md5_check_checkbox)
 
         sync_layout = QHBoxLayout()
         self.sync_all_images_btn = QPushButton('同步附件图片')
@@ -278,6 +283,12 @@ class ObsidianImageUploader(QWidget):
                     '无法连接到图床服务器，请检查网络连接或修改图床服务器配置')
             self.check_img_server_label.setStyleSheet("QLabel { color : #ef5350; }")
             self.disable_all_func_btn()
+
+    def show_md5_check_status(self):
+        check_status = self.enable_md5_check_checkbox.isChecked()
+        self.log.warning(f'enable md5 check: {check_status}')
+        if isinstance(self.upload_thread, Uploader):
+            self.upload_thread.check_md5 = check_status
 
     def disable_all_func_btn(self):
         self.check_sync_status_btn.setDisabled(True)
