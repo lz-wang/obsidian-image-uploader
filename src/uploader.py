@@ -9,7 +9,7 @@ from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
 from pkg.utils.logger import get_logger
 from src.config_loader import ConfigLoader
-from src.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
+from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 
 
 class Uploader(QThread):
@@ -38,9 +38,9 @@ class Uploader(QThread):
         if self.bucket_name not in self.cos.list_buckets():
             raise CosBucketNotFoundError(f'找不到存储桶: {self.bucket_name}')
         self.bucket = TencentCosBucket(self.cos, self.bucket_name)
-        self.log.info(f'remote_dir -> {self.remote_dir}')
-        self.log.info(f'list dir -> {self.bucket.list_dirs()}')
-        if self.remote_dir not in self.bucket.list_dirs():
+        bucket_dirs = self.bucket.list_dirs()
+        self.log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
+        if self.remote_dir not in bucket_dirs:
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
     def connect_server(self):
@@ -53,7 +53,8 @@ class Uploader(QThread):
     def _get_remote_files(self):
         if self.bucket is None:
             self.connect_bucket_dir()
-        return self.bucket.list_objects(prefix=self.remote_dir)
+        assert isinstance(self.bucket, TencentCosBucket)
+        return self.bucket.list_dir_files(self.remote_dir)
 
     def run(self):
         """启动子线程，将文件上传到COS，同时发送信号到GUI"""

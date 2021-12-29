@@ -4,7 +4,8 @@ from urllib.parse import quote
 from qcloud_cos import CosServiceError
 
 from pkg.tencent_cos.cos import TencentCos
-from pkg.utils.file_hash import get_file_md5sum
+from pkg.tencent_cos.exceptions import CosBucketDirNotFoundError
+from pkg.utils.file_tools import get_file_md5sum
 from pkg.utils.logger import get_logger
 
 REGIONS = ['nanjing', 'chengdu', 'beijing', 'guangzhou', 'shanghai', 'chongqing', 'hongkong']
@@ -16,7 +17,7 @@ class TencentCosBucket(object):
         self.cos = cos
         self.log = get_logger(f'{self.__class__.__name__}')
         self.name = bucket_name
-        self.full_name = bucket_name + '-' + self.cos.get_suffix_id()
+        self.full_name = bucket_name + '-' + self.cos.get_appid()
         self.base_url = self.get_bucket_url()
         self.get_correct_cos_region()
 
@@ -36,13 +37,13 @@ class TencentCosBucket(object):
                                      f'{self.cos.region}, try another region')
                     region = f'ap-{region}'
                     self.cos = TencentCos(self.cos.secret_id, self.cos.secret_key, region)
-                    self.full_name = self.name + '-' + self.cos.get_suffix_id()
+                    self.full_name = self.name + '-' + self.cos.get_appid()
                     continue
             except Exception as e:
                 self.log.error(f'Fatal: {str(e)}')
 
     def list_objects(self, prefix: str = ''):
-        """列出远程对象（含文件和文件夹）"""
+        """列出远程对象/文件"""
         response = self.cos.client.list_objects(Bucket=self.full_name, Prefix=prefix)
         if 'Contents' in response:
             return [c['Key'].replace(prefix, '') for c in response['Contents']]
@@ -51,24 +52,21 @@ class TencentCosBucket(object):
             return []
 
     def list_dirs(self):
-        """列出远程文件夹"""
-        contents = self.list_objects()
-        dirs = []
-        for c in contents:
-            if '/' not in c:
-                continue
-            else:
-                dirs.append('/'.join(c.split('/')[:-1]))
-        return list(set(dirs))
+        """列出所有远程文件夹"""
+        return [ob[:-1] for ob in self.list_objects() if ob.endswith('/')]
 
     def list_files(self):
-        """列出远程文件"""
-        objects = self.list_objects()
-        dirs = self.list_dirs()
-        for dir_ in dirs:
-            objects.remove(dir_)
+        """列出所有远程文件"""
+        return [ob for ob in self.list_objects() if not ob.endswith('/')]
 
-        return objects
+    def list_dir_files(self, remote_dir: str):
+        """列出特定文件夹下远程文件"""
+        if remote_dir not in ['', '/']:
+            if not remote_dir.endswith('/'):
+                remote_dir += '/'
+            if remote_dir[:-1] not in self.list_dirs():
+                raise CosBucketDirNotFoundError(f'Bucket dir {remote_dir} not found.')
+        return self.list_objects(prefix=remote_dir)
 
     def upload_object(self, local_path, remote_path: str = '', overwrite=True):
         """上传单个对象"""
@@ -114,18 +112,30 @@ class TencentCosBucket(object):
         except Exception as e:
             self.log.error(f'Download {file_name} to {local_file_path} failed! (detail: {str(e)})')
 
-    def delete_object(self, remote_path, object_key):
-        """删除单个对象"""
-        if object_key not in self.list_objects(prefix=remote_path):
-            err_msg = f'{object_key} not found in {remote_path}'
+    def _delete_object(self, object_full_path: str):
+        """删除指定路径对象"""
+        self.log.warning(f'Bucket {self.name}, delete object: {object_full_path}')
+        self.cos.client.delete_object(
+            Bucket=self.full_name,
+            Key=object_full_path
+        )
+
+    def delete_object(self, remote_dir, object_key):
+        """删除文件夹内的单个对象"""
+        if not remote_dir.endswith('/') and remote_dir != '':
+            remote_dir += '/'
+        if object_key not in self.list_dir_files(remote_dir):
+            err_msg = f'{object_key} not found in {remote_dir}'
             self.log.error(err_msg)
             return False, err_msg
         else:
-            self.log.info(f'{object_key} found in {remote_path}')
-        self.cos.client.delete_object(
-            Bucket=self.full_name,
-            Key=remote_path+object_key
-        )
+            self._delete_object(remote_dir+object_key)
+            return True, ''
+
+    def delete_dir_objects(self, remote_dir: str):
+        """删除文件夹内所有对象"""
+        for file in self.list_dir_files(remote_dir):
+            self._delete_object(file)
 
     def delete_all_objects(self):
         """删除所有文件，清空存储桶"""
@@ -147,6 +157,7 @@ class TencentCosBucket(object):
         return md5hash
 
     def _get_object_info(self, object_full_path: str):
+        """获取对象元数据信息"""
         return self.cos.client.get_object(
             Bucket=self.full_name,
             Key=object_full_path

@@ -4,9 +4,8 @@ import traceback
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel, QMessageBox,
-    QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox, QDialog,
-    QComboBox)
+    QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel,
+    QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox)
 
 from pkg.utils.logger import get_logger
 from pkg.utils.qt_utils import reconnect
@@ -14,8 +13,7 @@ from src.obsidian import find_ob_imgs, update_ob_file
 from src.uploader import Uploader
 from src.config_loader import ConfigLoader
 from src.img_server_ui import SetupImageServerDialog
-from src.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
-from pkg.tencent_cos.cos_bucket import TencentCosBucket
+from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 
 
 class ObsidianImageUploader(QWidget):

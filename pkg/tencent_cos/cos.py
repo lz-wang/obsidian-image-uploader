@@ -16,7 +16,7 @@ class TencentCos(object):
         self.secret_key = secret_key
         self.region = region
         self.client = self.connect_client()
-        self._bucket_suffix = self.get_suffix_id()
+        self._bucket_suffix = self.get_appid()
 
     def connect_client(self, region=None):
         """连接到COS服务"""
@@ -25,8 +25,8 @@ class TencentCos(object):
                                Region=cos_region, Token=None, Scheme='https')
         return CosS3Client(cos_config)
 
-    def get_suffix_id(self):
-        """获取cos桶的默认后缀名"""
+    def get_appid(self):
+        """获取cos的APPID"""
         demo_bucket = self.client.list_buckets()['Buckets']['Bucket'][0]
         return demo_bucket['Name'].split('-')[-1]
 
