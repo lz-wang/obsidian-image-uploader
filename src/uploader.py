@@ -95,6 +95,8 @@ class Uploader(QThread):
         """检查文件同步状态"""
         self.console_log_text.emit('正在检查文件同步状态：')
         has_not_synced = False
+        if self.check_md5 is True:
+            self.last_checked_synced_files.clear()
         for i in range(len(self.local_files)):
             local_file = self.local_files[i]
             local_file_name = local_file.split("/")[-1]
@@ -116,7 +118,8 @@ class Uploader(QThread):
                 has_not_synced = True
             else:
                 check_msg += f'文件已同步: {local_file_name}'
-                self.last_checked_synced_files.append(local_file)
+                if local_file not in self.last_checked_synced_files:
+                    self.last_checked_synced_files.append(local_file)
 
             self.check_result.emit(check_msg)
             self.console_log_text.emit(check_msg)
