@@ -27,8 +27,7 @@
 
 ### 项目依赖：
 ```shell
-pip install cos-python-sdk-v5
-pip install pyside6
+pip install -r requirements.txt
 ```
 
 ### 开始开发

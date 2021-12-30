@@ -12,17 +12,20 @@ DEFAULT_CONFIG_PATH = os.path.join(
 
 
 class ConfigLoader(object):
+    """加载配置"""
     def __init__(self, config_file=None):
         self.log = get_logger(self.__class__.__name__)
         self.config_file = self._get_config_file(config_file)
         self.config = {}
 
     def _get_config_file(self, config_file):
+        """获取配置文件"""
         if config_file is not None:
             return config_file
         return self.init_user_config()
 
     def read_config(self):
+        """读取配置"""
         self.log.info(f'Read user config in {self.config_file}...')
         with open(self.config_file, 'r') as f:
             self.config = AppConfigModel(**yaml.safe_load(f))
@@ -30,11 +33,13 @@ class ConfigLoader(object):
         return self.config
 
     def update_config(self, new_config: AppConfigModel = None):
+        """更新当前配置"""
         new_config = self.config if new_config is None else new_config
         with open(self.config_file, 'w') as f:
             yaml.safe_dump(new_config.dict(), f)
 
     def init_user_config(self):
+        """初始化用户配置"""
         user_config = os.path.join(DEFAULT_CONFIG_PATH, 'app_config.yaml')
         if os.path.exists(user_config) and self.check_user_config(user_config):
             self.log.info(f'check user config in {user_config} format success')
@@ -49,12 +54,11 @@ class ConfigLoader(object):
         return user_config
 
     def check_user_config(self, user_config_path):
+        """检查用户配置是否合法"""
         try:
             with open(user_config_path, 'r') as f:
                 user_config = yaml.safe_load(f)
                 AppConfigModel(**user_config)
-                # dc = copy.deepcopy(DEFAULT_CONFIG)
-                # self.compare_dict_keys(dc, uc)
             return True
         except Exception as e:
             self.log.warning(f'check user config in {user_config_path} '
@@ -62,6 +66,7 @@ class ConfigLoader(object):
             return False
 
     def compare_dict_keys(self, d1: dict, d2: dict):
+        """工具类，比较纯字典配置文件格式是否一致"""
         k1 = sorted(d1.keys())
         k2 = sorted(d2.keys())
         assert k2 == k1, f'{k2} != {k1}'

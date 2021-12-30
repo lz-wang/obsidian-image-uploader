@@ -12,4 +12,3 @@ if __name__ == '__main__':
     oiu.show()
     oiu.try_connect_img_server()
     sys.exit(app.exec())
-

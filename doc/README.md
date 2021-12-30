@@ -3,26 +3,21 @@
 ### 安装MkDocs
 
 安装文档生成工具[MkDocs](https://www.mkdocs.org/)
+
 ```shell
 pip install mkdocs
 ```
 
 ### 安装插件
 
-安装主题[mkdocs-material](https://squidfunk.github.io/mkdocs-material/)
+1. 主题[mkdocs-material](https://squidfunk.github.io/mkdocs-material/)
+2. 从markdown文件引用插件[mkdocs-include-markdown-plugin](https://github.com/mondeja/mkdocs-include-markdown-plugin)
+3. 从API中提取文档插件[mkdocstrings](https://github.com/mkdocstrings/mkdocstrings)
+
 ```shell
-pip install mkdocs-material
+pip install mkdocs-material mkdocs-include-markdown-plugin mkdocstrings
 ```
 
-安装从markdown文件引用插件[mkdocs-include-markdown-plugin](https://github.com/mondeja/mkdocs-include-markdown-plugin)
-```shell
-pip install mkdocs-include-markdown-plugin
-```
-
-安装从API中提取文档插件[mkdocstrings](https://github.com/mkdocstrings/mkdocstrings)
-```shell
-pip install mkdocstrings
-```
 
 ### 文档预览与生成
 
