@@ -120,8 +120,7 @@ class SetupImageServerDialog(QDialog):
         self.img_server.start()
 
     def check_connect(self):
-        self.config = self.config_loader.read_config()
-        self.refresh_ui_from_config()
+        self.save_config_from_ui()
         self.check_connect_label.setText('正在尝试连接到图床服务器，请等待...')
         self.check_connect_label.setStyleSheet("QLabel { color : #42a5f5; }")
         self.img_server.event_queue.put({'type': 'LIST_BUCKET', 'cos': 'tencent'})
