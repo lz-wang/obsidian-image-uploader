@@ -182,27 +182,43 @@ class ObsidianImageUploader(QWidget):
 
     def import_ob_md_file(self):
         dlg_open_files = QFileDialog()
-        current_ledit_path = self.ob_md_file_path.text()
-        if os.path.exists(current_ledit_path):
-            default_path = current_ledit_path
+        if os.path.exists(self.ob_md_file_path.text()):
+            cur_file_path = self.ob_md_file_path.text()
         else:
-            default_path = self.ob_valut_path
-        file_name = dlg_open_files.getOpenFileName(self, directory=default_path)[0]
-        self.config.obsidian.note_default_path = file_name
-        self.config_loader.update_config(self.config)
-        if file_name:
-            self.ob_md_file_path.setText(file_name)
-
-    def change_ob_attachment_path(self):
-        dlg_open_path = QFileDialog()
-        path = os.environ['HOME']
+            cur_file_path = os.environ['HOME']
+        new_file_path = ''
         try:
-            path = dlg_open_path.getExistingDirectory(caption="选取Obsidian附件", dir=path)
+            new_file_path = dlg_open_files.getOpenFileName(self, dir=cur_file_path)[0]
         except Exception as e:
             self.log.error(e)
-        self.config.obsidian.attachment_path = path if path else self.config.obsidian.attachment_path
+            self.log.error(traceback.format_exc())
+        finally:
+            if not os.path.exists(str(new_file_path)):
+                new_file_path = cur_file_path
+        self.config.obsidian.note_default_path = new_file_path
         self.config_loader.update_config(self.config)
-        self.ob_attachment_path.setText(path)
+        if new_file_path:
+            self.ob_md_file_path.setText(new_file_path)
+
+    def change_ob_attachment_path(self):
+        if os.path.exists(self.ob_attachment_path.text()):
+            cur_path = self.ob_attachment_path.text()
+        else:
+            cur_path = os.environ['HOME']
+        dlg_open_path = QFileDialog()
+        new_path = ''
+        try:
+            new_path = dlg_open_path.getExistingDirectory(
+                caption="选取Obsidian附件", dir=cur_path)
+        except Exception as e:
+            self.log.error(e)
+            self.log.error(traceback.format_exc())
+        finally:
+            if not new_path:
+                new_path = cur_path
+        self.config.obsidian.attachment_path = new_path
+        self.config_loader.update_config(self.config)
+        self.ob_attachment_path.setText(new_path)
 
     def start_convert_to_stmd(self):
         self.start_convert_btn.setDisabled(True)
