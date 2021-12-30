@@ -140,6 +140,7 @@ cython_debug/
 
 .idea
 .vscode
+/.DS_Store
 /coverage_html_report/
 /docs/site/
 /doc/site/
@@ -149,3 +150,5 @@ cython_debug/
 /log/
 /pkg/utils/file_compare.py
 /test/
+/main.build/
+/main.dist/

@@ -1,6 +1,6 @@
-from pydantic import BaseModel, BaseConfig
-from typing import Dict, List
+import typing_extensions  # don't delete, otherwise will compile GUI APP failed
 
+from pydantic import BaseModel
 
 DEFAULT_CONFIG = {
     'cos': {

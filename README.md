@@ -25,25 +25,54 @@
 
 ## 快速开始
 
-### 项目依赖：
+### 项目依赖
+
+注意: `PySide6`使用缓存可能出现问题，所以此处加参数`--no-cache-dir`
 ```shell
-pip install -r requirements.txt
+pip install -r requirements.txt --no-cache-dir
 ```
 
 ### 开始开发
 
 运行或调试根目录下的`main.py`即可。
 
-### 重新打包
+### 使用Nuitka打包App
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
-sudo rm -rf build dist
+rm -rf main.build mian.dist 
 ```
 
 然后重新生成打包的文件:
 ```shell
-sudo pyinstaller -F -w main.py
+python -m nuitka --follow-imports --enable-plugin=pyside6 --standalone main.py
 ```
 
-最后双击`dist`目录下的`main`文件即可运行。
+尝试直接运行App二进制文件:
+```shell
+./main.dist/main
+```
+
+如果启动时有如下报错:
+```shell
+Traceback (most recent call last):
+  File "/Users/lzwang/MyProjects/Python/obsidian-img-uploader/./main.dist/main.py", line 3, in <module>
+ImportError: dlopen(/Users/lzwang/MyProjects/Python/obsidian-img-uploader/./main.dist/PySide6/QtWidgets.so, 2): Library not loaded: @rpath/QtQml.framework/Versions/A/QtQml
+  Referenced from: /Users/lzwang/MyProjects/Python/obsidian-img-uploader/main.dist/libpyside6.abi3.6.2.dylib
+  Reason: image not found
+```
+
+需要将Python环境中`PySide6`下的整个`Qt`目录拷贝至项目的`./main.dist/PySide6/`目录下即可(此处使用的是conda创建的`obsidian-img-uploader`环境):
+
+```shell
+cp -rf /Users/lzwang/.conda/envs/obsidian-img-uploader/lib/python3.9/site-packages/PySide6/Qt ~/MyProjects/Python/obsidian-img-uploader/main.dist/PySide6/
+```
+
+再次尝试运行App二进制文件即可:
+```shell
+./main.dist/main
+```
+
+## 参考资料
+
+1. [Use Nuitka to compile a macOS executable from a Python Pyside6 app](https://www.loekvandenouweland.com/content/pyside6-nuitka-python.html)
