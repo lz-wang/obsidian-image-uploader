@@ -40,7 +40,7 @@ pip install -r requirements.txt --no-cache-dir
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
-rm -rf main.build mian.dist 
+rm -rf main.build main.dist 
 ```
 
 然后重新生成打包的文件:
