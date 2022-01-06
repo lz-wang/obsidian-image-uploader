@@ -272,6 +272,7 @@ class ObsidianImageUploader(QWidget):
 
     def setup_img_server(self):
         self.setup_img_dlg.show()
+        self.setup_img_dlg.refresh_ui_from_config()
         self.setup_img_dlg.check_connect()
 
     def try_connect_img_server(self):

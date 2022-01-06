@@ -176,5 +176,7 @@ class SetupImageServerDialog(QDialog):
         self.secret_id_lineedit.setText(self.config.cos.tencent.secret_id)
         self.secret_key_lineedit.setText(self.config.cos.tencent.secret_key)
         self.config_bucket_label.setText(f'(当前配置存储桶: {self.config.cos.tencent.bucket[:15]})')
+        self.config_bucket_label.setToolTip(self.config.cos.tencent.bucket)
         self.config_dir_label.setText(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
+        self.config_dir_label.setToolTip(self.config.cos.tencent.dir)
 
