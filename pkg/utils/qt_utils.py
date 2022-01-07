@@ -1,7 +1,8 @@
-from pkg.utils.logger import get_logger
+from loguru import logger
 
 
-log = get_logger('qt utils')
+
+log = logger
 
 
 def reconnect(signal, slot):

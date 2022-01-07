@@ -5,7 +5,8 @@ from PySide6.QtCore import QThread, Signal
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
-from pkg.utils.logger import get_logger
+from loguru import logger
+
 from src.config_loader import ConfigLoader
 
 
@@ -18,7 +19,7 @@ class ImageServer(QThread):
 
     def __init__(self):
         super().__init__()
-        self.log = get_logger(self.__class__.__name__)
+        self.log = logger
         self.event_queue = Queue()
         self.cos = None
 

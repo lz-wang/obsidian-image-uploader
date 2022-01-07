@@ -7,7 +7,8 @@ from PySide6.QtCore import QThread, Signal
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
-from pkg.utils.logger import get_logger
+from loguru import logger
+
 from pkg.utils.file_tools import get_file_md5sum
 from src.config_loader import ConfigLoader
 from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
@@ -24,7 +25,7 @@ class Uploader(QThread):
     def __init__(self, bucket_name: str, local_files: list, remote_dir: str):
         """init"""
         super(Uploader, self).__init__()
-        self.log = get_logger(self.__class__.__name__)
+        self.log = logger
         self.cos = None
         self.bucket = None
         self.bucket_name = bucket_name

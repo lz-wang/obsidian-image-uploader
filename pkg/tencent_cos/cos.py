@@ -1,6 +1,6 @@
 from qcloud_cos import CosConfig, CosS3Client, CosServiceError
 
-from pkg.utils.logger import get_logger
+from loguru import logger
 
 
 class TencentCos(object):
@@ -11,7 +11,7 @@ class TencentCos(object):
     def __init__(self, secret_id: str, secret_key: str, region: str = 'ap-chengdu'):
         """secret_id和secret_key获取参考：
         https://console.cloud.tencent.com/cam/capi"""
-        self.log = get_logger(f'{self.__class__.__name__}')
+        self.log = logger
         self.secret_id = secret_id
         self.secret_key = secret_key
         self.region = region

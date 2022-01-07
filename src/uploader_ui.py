@@ -7,7 +7,8 @@ from PySide6.QtWidgets import (
     QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel,
     QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox)
 
-from pkg.utils.logger import get_logger
+from loguru import logger
+
 from pkg.utils.qt_utils import reconnect
 from src.obsidian import find_ob_imgs, update_ob_file
 from src.uploader import Uploader
@@ -21,7 +22,7 @@ class ObsidianImageUploader(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.log = get_logger(self.__class__.__name__)
+        self.log = logger
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.read_config()
         self.overwrite = False

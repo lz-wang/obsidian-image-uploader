@@ -1,12 +1,12 @@
 import os
 from urllib.parse import quote
 
+from loguru import logger
 from qcloud_cos import CosServiceError
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.exceptions import CosBucketDirNotFoundError
 from pkg.utils.file_tools import get_file_md5sum
-from pkg.utils.logger import get_logger
 
 REGIONS = ['nanjing', 'chengdu', 'beijing', 'guangzhou', 'shanghai', 'chongqing', 'hongkong']
 
@@ -15,7 +15,7 @@ class TencentCosBucket(object):
     """腾讯云COS桶文件操作"""
     def __init__(self, cos: TencentCos, bucket_name):
         self.cos = cos
-        self.log = get_logger(f'{self.__class__.__name__}')
+        self.log = logger
         self.name = bucket_name
         self.full_name = bucket_name + '-' + self.cos.get_appid()
         self.base_url = self.get_bucket_url()

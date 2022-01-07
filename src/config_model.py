@@ -1,5 +1,3 @@
-import typing_extensions  # don't delete, otherwise will compile GUI APP failed
-
 from pydantic import BaseModel
 
 DEFAULT_CONFIG = {

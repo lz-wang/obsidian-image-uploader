@@ -1,10 +1,9 @@
-import copy
 import os
-import yaml
 import shutil
 
+import yaml
+from loguru import logger
 
-from pkg.utils.logger import get_logger
 from src.config_model import DEFAULT_CONFIG, AppConfigModel
 
 DEFAULT_CONFIG_PATH = os.path.join(
@@ -14,7 +13,7 @@ DEFAULT_CONFIG_PATH = os.path.join(
 class ConfigLoader(object):
     """加载配置"""
     def __init__(self, config_file=None):
-        self.log = get_logger(self.__class__.__name__)
+        self.log = logger
         self.config_file = self._get_config_file(config_file)
         self.config = {}
 

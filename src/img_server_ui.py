@@ -1,10 +1,9 @@
-from PySide6.QtWidgets import (
-    QPushButton, QLineEdit, QLabel, QMessageBox,
-    QHBoxLayout, QVBoxLayout, QDialog,
-    QComboBox)
 from PySide6.QtCore import Signal
+from PySide6.QtWidgets import (
+    QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QDialog,
+    QComboBox)
+from loguru import logger
 
-from pkg.utils.logger import get_logger
 from pkg.utils.qt_utils import reconnect
 from src.config_loader import ConfigLoader
 from src.img_server import ImageServer
@@ -17,7 +16,7 @@ class SetupImageServerDialog(QDialog):
         super().__init__()
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.read_config()
-        self.log = get_logger(self.__class__.__name__)
+        self.log = logger
         self.img_server = None
         self._init_ui()
         self._init_img_server()
@@ -142,7 +141,7 @@ class SetupImageServerDialog(QDialog):
             self.select_bucket_box.setCurrentText(self.config.cos.tencent.bucket)
             buckets.remove(self.config.cos.tencent.bucket)
         else:
-            self.log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default now.')
+            self.log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default.')
             self.select_bucket_box.setCurrentIndex(0)
         for bucket in buckets:
             self.select_bucket_box.addItem(bucket)
@@ -179,4 +178,3 @@ class SetupImageServerDialog(QDialog):
         self.config_bucket_label.setToolTip(self.config.cos.tencent.bucket)
         self.config_dir_label.setText(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
         self.config_dir_label.setToolTip(self.config.cos.tencent.dir)
-

@@ -1,10 +1,5 @@
 import logging
 from logging import handlers
-import sys
-import traceback
-
-from loguru import logger
-import loguru
 
 # %(asctime)s       年-月-日 时-分-秒,毫秒 2013-04-26 20:10:43,745
 # %(filename)s      文件名，不含目录
@@ -44,36 +39,3 @@ def get_logger(name):
         my_logger.addHandler(th)
 
     return my_logger
-
-
-def get_logger2(name=None):
-    """TODO: some bugs here, may leak memory"""
-    # to console
-    log_console_handler = dict(
-        sink=sys.stdout,
-        level='DEBUG',
-        format='<green>{time:MM-DD HH:mm:ss.SSS}</green> '
-               '| <level>{level: <8}</level> '
-               '| <cyan>{name: <30}</cyan>: <cyan>{function: <18}</cyan>: <cyan>line.{line: <4}</cyan> | '
-               '<level>{message}</level> ',
-        enqueue=True
-    )
-
-    # to file
-    log_file_handler = dict(
-        sink='/Users/lzwang/Downloads/log/loguru_{time:YYYY_MM}.log',
-        level='DEBUG',
-        format="{time:YYYY-MM-DD HH:mm:ss.SSS} "
-               "| {level: <8} | {name: <20} -> {function: <16} -> line.{line} | {message}",
-        rotation='5 MB',  # create a new log file when log file size > 5 MB
-        retention='3 months',  # keep log file time: "1 week, 3 days"、"2 months"
-        backtrace=True,
-        enqueue=True,
-        encoding="utf-8",
-        compression='zip'  # zip、tar、gz、tar.gz
-    )
-
-    logger.configure(handlers=[log_console_handler, log_file_handler])
-
-    return logger
-
