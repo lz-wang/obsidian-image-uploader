@@ -4,9 +4,9 @@
 
 ## 特点
 
-1. 使用100%的Python实现，支持macOS和Linux平台
-2. 支持将Obsidian笔记中的本地图片链接转变为通用Markdown链接
-3. 支持将Obsidian的附件全部同步到图床服务器上
+1. 使用100%的Python实现，支持macOS平台
+2. 支持将Obsidian笔记中的本地图片链接转变为通用Markdown链接，转化Obsidian的笔记为通用Markdown文件
+3. 支持将Obsidian的附件图片全部同步到图床服务器上
 
 注意：
 
@@ -36,7 +36,25 @@ pip install -r requirements.txt --no-cache-dir
 
 运行或调试根目录下的`main.py`即可。
 
-### 使用Nuitka打包App
+
+### 是用Pyinstaller打包App为macOS`.app`软件包
+
+在项目根目录，首先删除之前的构建残存目录：
+```shell
+rm -rf ./build ./dist 
+```
+
+然后重新生成打包的文件:
+```shell
+pyinstaller -D -w main.py
+```
+
+然后，在软件根目录的dist目录中：
+
+- `./dist/main.app`: macOS专用软件包（无控制台），双击即可运行
+- `./dist/main/main`: 可执行的二进制文件（有控制台）
+
+### 使用Nuitka打包App为二进制文件
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
