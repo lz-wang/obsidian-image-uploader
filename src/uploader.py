@@ -1,4 +1,5 @@
 import os
+import time
 from datetime import datetime
 from queue import Queue
 
@@ -7,6 +8,7 @@ from loguru import logger
 
 from pkg.tencent_cos.exceptions import CosBucketDirNotFoundError
 from pkg.utils.file_tools import get_file_md5sum
+from pkg.utils.qt_utils import better_emit
 from src.config_loader import ConfigLoader
 from src.img_server import ImageServer
 
@@ -36,6 +38,7 @@ class Uploader(QObject):
         self.config = ConfigLoader().read_config()
         self.bucket_name = self.config.cos.tencent.bucket
         self.remote_dir = self.config.cos.tencent.dir
+        self.last_checked_synced_files = []
 
     def connect_bucket_dir(self):
         """连接到腾讯COS，获取存储桶信息"""
@@ -48,6 +51,7 @@ class Uploader(QObject):
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
     def _get_remote_files(self):
+        self._reload_config()
         self.server.connect_bucket(self.bucket_name)
         return self.server.cos_bucket.list_dir_files(self.remote_dir)
 

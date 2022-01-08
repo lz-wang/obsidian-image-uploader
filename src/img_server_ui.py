@@ -55,13 +55,13 @@ class SetupImageServerDialog(QDialog):
         self.check_connect_layout = QHBoxLayout()
         connect_status_label = QLabel('腾讯云 连接状态:')
         connect_status_label.setFixedWidth(self.label_width)
-        self.check_connect_btn = QPushButton('刷新')
-        self.check_connect_btn.clicked.connect(self.check_connect)
+        self.recheck_connect_btn = QPushButton('刷新')
+        self.recheck_connect_btn.clicked.connect(self.recheck_connect)
         self.check_connect_label = QLabel('尚未测试连接状态')
         self.check_connect_layout.addWidget(connect_status_label)
         self.check_connect_layout.addWidget(self.check_connect_label)
         self.check_connect_layout.addStretch(1)
-        self.check_connect_layout.addWidget(self.check_connect_btn)
+        self.check_connect_layout.addWidget(self.recheck_connect_btn)
 
         default_bucket_label = QLabel('选择默认存储桶:')
         default_bucket_label.setFixedWidth(self.label_width)
@@ -129,9 +129,12 @@ class SetupImageServerDialog(QDialog):
         reconnect(self._dir_worker.dir_list, self.set_select_folder_box)
 
     def check_connect(self):
-        self.save_config_from_ui()
         self._bucket_thread.start()
         set_label_text(self.check_connect_label, '正在尝试连接到图床服务器，请等待...')
+
+    def recheck_connect(self):
+        self.save_config_from_ui()
+        self.check_connect()
 
     def set_check_connect_label(self, result, info):
         if result is True:

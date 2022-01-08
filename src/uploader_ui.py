@@ -37,6 +37,9 @@ class ObsidianImageUploader(QWidget):
         self.upload_thread = QThread()
         self.upload_worker = Uploader()
         self.upload_worker.moveToThread(self.upload_thread)
+        reconnect(self.upload_worker.check_result, self.update_check_result)
+        reconnect(self.upload_worker.upload_progress_max_value, self.update_sync_p_bar_max_value)
+        reconnect(self.upload_worker.upload_progress_value, self.update_sync_p_bar_value)
 
     def _init_ui(self):
         self._init_attachment_ui()
@@ -75,7 +78,7 @@ class ObsidianImageUploader(QWidget):
         self.func_1_label = QLabel('功能1：同步所有Obsidian图片到图床')
         check_layout = QHBoxLayout()
         self.check_sync_status_btn = QPushButton('检查同步状态')
-        self.check_result = QLabel('尚未检查过同步状态')
+        self.check_result_label = QLabel('尚未检查过同步状态')
         self.check_sync_status_btn.clicked.connect(self.check_sync_status)
         self.enable_md5_check_checkbox = QCheckBox('检查文件完整性')
         self.enable_md5_check_checkbox.setToolTip(
@@ -85,7 +88,7 @@ class ObsidianImageUploader(QWidget):
         self.enable_md5_check_checkbox.setChecked(Qt.CheckState.Unchecked)
         self.enable_md5_check_checkbox.stateChanged.connect(self.show_md5_check_status)
         check_layout.addWidget(self.check_sync_status_btn)
-        check_layout.addWidget(self.check_result)
+        check_layout.addWidget(self.check_result_label)
         check_layout.addStretch(1)
         check_layout.addWidget(self.enable_md5_check_checkbox)
 
@@ -154,23 +157,29 @@ class ObsidianImageUploader(QWidget):
 
     def check_sync_status(self):
         self.reset_upload_params()
-        # connect func to thread
         reconnect(self.upload_thread.started, self.upload_worker.check_files)
-        reconnect(self.upload_thread.finished, self.upload_thread.deleteLater)
-        # connect signal and slots
-        reconnect(self.upload_worker.check_finished,
-                  [self.upload_thread.quit, self.upload_worker.deleteLater])
-        reconnect(self.upload_worker.check_result, self.update_check_result)
+        reconnect(self.upload_worker.check_finished, self.upload_thread.quit)
+        self.disable_sync_btns_until_finished()
+        self.check_result_label.setText('正在检查同步状态...')
+        self.console_textedit.append('='*80)
         self.upload_thread.start()
 
     def update_check_result(self, check_result: str):
-        self.check_result.setText(str(check_result))
+        self.check_result_label.setText(str(check_result))
+
+    def disable_sync_btns_until_finished(self):
+        self.check_sync_status_btn.setEnabled(False)
+        self.sync_all_images_btn.setEnabled(False)
+        reconnect(self.upload_thread.finished,
+                  [lambda: self.check_sync_status_btn.setEnabled(True),
+                   lambda: self.sync_all_images_btn.setEnabled(True)])
 
     def sync_all_image(self):
         self.reset_upload_params()
-        reconnect(self.upload_worker.upload_progress_max_value, self.update_sync_p_bar_max_value)
-        reconnect(self.upload_worker.upload_progress_value, self.update_sync_p_bar_value)
-        self.upload_worker.event_queue.put('UPLOAD')
+        reconnect(self.upload_thread.started, self.upload_worker.upload_files)
+        reconnect(self.upload_worker.upload_finished, self.upload_thread.quit)
+        self.disable_sync_btns_until_finished()
+        self.upload_thread.start()
 
     def reset_upload_params(self):
         file_names = os.listdir(self.ob_attachment_path.text())
@@ -231,8 +240,7 @@ class ObsidianImageUploader(QWidget):
         self.log.info(f'Obsidian文件: {ob_file}')
         ob_file_images = find_ob_imgs(ob_file)
         img_root = self.ob_attachment_path.text()
-        imgs = [os.path.join(img_root, img) for img in ob_file_images]
-        self.upload_worker.local_files = imgs
+        self.upload_worker.local_files = [os.path.join(img_root, img) for img in ob_file_images]
         reconnect(self.upload_worker.upload_progress_max_value, self.update_convert_p_bar_max_value)
         reconnect(self.upload_worker.upload_progress_value, self.update_convert_p_bar_value)
         reconnect(self.upload_worker.files_url, self.update_ob_file_urls)

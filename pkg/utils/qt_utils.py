@@ -1,4 +1,5 @@
 import threading
+from collections import Iterable
 
 from loguru import logger as log
 from PySide6.QtWidgets import QLabel
@@ -29,7 +30,7 @@ def set_label_text(label: QLabel, text: str, level: str = 'INFO'):
     label.setText(text)
 
 
-def better_emit(signal, emit_args: tuple = None):
+def better_emit(signal, emit_args=None):
     """为避免Qt原发送信号过程中由于网络时延造成的UI卡顿，
     此处启动了额外的线程发送信号
 
@@ -37,6 +38,14 @@ def better_emit(signal, emit_args: tuple = None):
         signal: Qt信号
         emit_args: 信号参数
     """
-    emit_thread = threading.Thread(target=signal.emit,
-                                   args=[] if emit_args is None else emit_args)
+    if emit_args is None:
+        emit_args = []
+    elif isinstance(emit_args, str):
+        emit_args = (emit_args, )
+    elif not isinstance(emit_args, Iterable):
+        emit_args = (emit_args, )
+    else:
+        emit_args = tuple(emit_args)
+
+    emit_thread = threading.Thread(target=signal.emit, args=emit_args)
     emit_thread.start()
