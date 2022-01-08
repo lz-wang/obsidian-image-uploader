@@ -25,7 +25,7 @@ class ConfigLoader(object):
 
     def read_config(self):
         """读取配置"""
-        self.log.info(f'Read user config in {self.config_file}...')
+        self.log.debug(f'Read user config in {self.config_file}...')
         with open(self.config_file, 'r') as f:
             self.config = AppConfigModel(**yaml.safe_load(f))
 
@@ -41,7 +41,7 @@ class ConfigLoader(object):
         """初始化用户配置"""
         user_config = os.path.join(DEFAULT_CONFIG_PATH, 'app_config.yaml')
         if os.path.exists(user_config) and self.check_user_config(user_config):
-            self.log.info(f'check user config in {user_config} format success')
+            self.log.debug(f'check user config in {user_config} format success')
         else:
             self.log.warning(f'check user config in {user_config} format failed')
             shutil.rmtree(DEFAULT_CONFIG_PATH, ignore_errors=True)

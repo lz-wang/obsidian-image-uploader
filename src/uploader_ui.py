@@ -2,14 +2,14 @@ import os
 import sys
 import traceback
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel,
     QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox)
 
 from loguru import logger
 
-from pkg.utils.qt_utils import reconnect
+from pkg.utils.qt_utils import reconnect, set_label_text
 from src.obsidian import find_ob_imgs, update_ob_file
 from src.uploader import Uploader
 from src.config_loader import ConfigLoader
@@ -28,19 +28,15 @@ class ObsidianImageUploader(QWidget):
         self.overwrite = False
         self.ob_valut_path = self.config.obsidian.vault_path
         self._init_ui()
-        self.upload_thread = self._init_upload_thread()
+        self._init_upload_thread()
         self.setup_img_dlg = SetupImageServerDialog()
         self.setup_img_dlg.setWindowModality(Qt.ApplicationModal)
         self.setup_img_dlg.config_saved.connect(self.try_connect_img_server)
 
     def _init_upload_thread(self):
-        uploder = Uploader(
-            bucket_name=self.config.cos.tencent.bucket,
-            local_files=[],
-            remote_dir=self.config.cos.tencent.dir
-        )
-        # uploder.start()
-        return uploder
+        self.upload_thread = QThread()
+        self.upload_worker = Uploader()
+        self.upload_worker.moveToThread(self.upload_thread)
 
     def _init_ui(self):
         self._init_attachment_ui()
@@ -83,7 +79,9 @@ class ObsidianImageUploader(QWidget):
         self.check_sync_status_btn.clicked.connect(self.check_sync_status)
         self.enable_md5_check_checkbox = QCheckBox('检查文件完整性')
         self.enable_md5_check_checkbox.setToolTip(
-            '如果开启此项:\n(1)将耗费较多流量且检查同步速度下降\n(2)同步时默认覆盖文件名一致但完整性校验失败的文件')
+            '如果开启此项:\n'
+            '(1)将耗费较多流量且检查同步速度下降\n'
+            '(2)同步时默认覆盖文件名一致但完整性校验失败的文件')
         self.enable_md5_check_checkbox.setChecked(Qt.CheckState.Unchecked)
         self.enable_md5_check_checkbox.stateChanged.connect(self.show_md5_check_status)
         check_layout.addWidget(self.check_sync_status_btn)
@@ -110,11 +108,11 @@ class ObsidianImageUploader(QWidget):
         self.overwrite_checkbox = QCheckBox('覆盖原始Obsidian文件')
         self.overwrite_checkbox.stateChanged.connect(self.need_overwrite)
         self.overwrite_checkbox.setCheckState(Qt.CheckState.Unchecked)
-        self.overwrite_tip_lable = QLabel('        新文件后缀:')
+        self.overwrite_tip_label = QLabel('        新文件后缀:')
         self.overwrite_suffix = QLineEdit()
         self.overwrite_suffix.setText(self.config.obsidian.overwrite_suffix)
         overwrite_layout.addWidget(self.overwrite_checkbox)
-        overwrite_layout.addWidget(self.overwrite_tip_lable)
+        overwrite_layout.addWidget(self.overwrite_tip_label)
         overwrite_layout.addWidget(self.overwrite_suffix)
         overwrite_layout.addStretch(1)
 
@@ -156,24 +154,30 @@ class ObsidianImageUploader(QWidget):
 
     def check_sync_status(self):
         self.reset_upload_params()
-        reconnect(self.upload_thread.check_result, self.update_check_result)
-        self.upload_thread.event_queue.put('CHECK')
+        # connect func to thread
+        reconnect(self.upload_thread.started, self.upload_worker.check_files)
+        reconnect(self.upload_thread.finished, self.upload_thread.deleteLater)
+        # connect signal and slots
+        reconnect(self.upload_worker.check_finished,
+                  [self.upload_thread.quit, self.upload_worker.deleteLater])
+        reconnect(self.upload_worker.check_result, self.update_check_result)
+        self.upload_thread.start()
 
-    def update_check_result(self, check_result):
-        self.check_result.setText(check_result)
+    def update_check_result(self, check_result: str):
+        self.check_result.setText(str(check_result))
 
     def sync_all_image(self):
         self.reset_upload_params()
-        reconnect(self.upload_thread.upload_progress_max_value, self.update_sync_p_bar_max_value)
-        reconnect(self.upload_thread.upload_progress_value, self.update_sync_p_bar_value)
-        self.upload_thread.event_queue.put('UPLOAD')
+        reconnect(self.upload_worker.upload_progress_max_value, self.update_sync_p_bar_max_value)
+        reconnect(self.upload_worker.upload_progress_value, self.update_sync_p_bar_value)
+        self.upload_worker.event_queue.put('UPLOAD')
 
     def reset_upload_params(self):
         file_names = os.listdir(self.ob_attachment_path.text())
-        self.upload_thread.local_files = [os.path.join(self.ob_attachment_path.text(), file)
+        self.upload_worker.local_files = [os.path.join(self.ob_attachment_path.text(), file)
                                           for file in file_names]
-        self.upload_thread.check_md5 = self.enable_md5_check_checkbox.isChecked()
-        reconnect(self.upload_thread.console_log_text, self.update_console)
+        self.upload_worker.check_md5 = self.enable_md5_check_checkbox.isChecked()
+        reconnect(self.upload_worker.console_log_text, self.update_console)
 
     def update_sync_p_bar_max_value(self, max_value):
         self.sync_progress_bar.setMaximum(max_value)
@@ -228,11 +232,11 @@ class ObsidianImageUploader(QWidget):
         ob_file_images = find_ob_imgs(ob_file)
         img_root = self.ob_attachment_path.text()
         imgs = [os.path.join(img_root, img) for img in ob_file_images]
-        self.upload_thread.local_files = imgs
-        reconnect(self.upload_thread.upload_progress_max_value, self.update_convert_p_bar_max_value)
-        reconnect(self.upload_thread.upload_progress_value, self.update_convert_p_bar_value)
-        reconnect(self.upload_thread.files_url, self.update_ob_file_urls)
-        self.upload_thread.event_queue.put('UPLOAD')
+        self.upload_worker.local_files = imgs
+        reconnect(self.upload_worker.upload_progress_max_value, self.update_convert_p_bar_max_value)
+        reconnect(self.upload_worker.upload_progress_value, self.update_convert_p_bar_value)
+        reconnect(self.upload_worker.files_url, self.update_ob_file_urls)
+        self.upload_worker.event_queue.put('UPLOAD')
 
     def update_convert_p_bar_max_value(self, max_value):
         self.convert_progressbar.setMaximum(max_value)
@@ -265,10 +269,10 @@ class ObsidianImageUploader(QWidget):
         self.overwrite = self.overwrite_checkbox.checkState() == Qt.Checked
         self.log.warning(f'overwrite: {self.overwrite}')
         if self.overwrite is True:
-            self.overwrite_tip_lable.setDisabled(True)
+            self.overwrite_tip_label.setDisabled(True)
             self.overwrite_suffix.setDisabled(True)
         else:
-            self.overwrite_tip_lable.setEnabled(True)
+            self.overwrite_tip_label.setEnabled(True)
             self.overwrite_suffix.setEnabled(True)
 
     def setup_img_server(self):
@@ -279,36 +283,33 @@ class ObsidianImageUploader(QWidget):
     def try_connect_img_server(self):
         try:
             self.config = self.config_loader.read_config()
-            self.check_img_server_label.setText('正在尝试连接到图床服务器，请等待...')
-            self.check_img_server_label.setStyleSheet("QLabel { color : #42a5f5; }")
-            self.upload_thread.bucket_name = self.config.cos.tencent.bucket
-            self.upload_thread.remote_dir = self.config.cos.tencent.dir
-            self.upload_thread.connect_bucket_dir()
-            self.check_img_server_label.setText('已成功连接到图床服务器，同步功能可用')
-            self.check_img_server_label.setStyleSheet("QLabel { color : #66bb6a; }")
+            set_label_text(self.check_img_server_label,
+                           '正在尝试连接到图床服务器，请等待...')
+            self.upload_worker.connect_bucket_dir()
+            set_label_text(self.check_img_server_label,
+                           f'已成功连接到图床服务器，同步功能可用 '
+                           f'(存储桶: {self.config.cos.tencent.bucket}, '
+                           f'文件夹{self.config.cos.tencent.dir})', 'SUCCESS')
             self.enable_all_func_btn()
-            self.upload_thread.start()
         except Exception as e:
             self.log.error(f'cannot connect image server, REASON: {str(e)}')
             self.log.error(traceback.format_exc())
             if isinstance(e, CosBucketNotFoundError):
-                self.check_img_server_label.setText(
-                    f'网络正常，但无法在图床服务器找到存储桶\"{self.config.cos.tencent.bucket}\"，请修改图床配置')
+                msg = f'网络正常，但无法在图床服务器找到存储桶\"{self.config.cos.tencent.bucket}\"，' \
+                      f'请修改图床配置'
             elif isinstance(e, CosBucketDirNotFoundError):
-                self.check_img_server_label.setText(
-                    f'网络正常，但无法在图床服务器存储桶\"{self.config.cos.tencent.bucket}\"中'
-                    f'找到文件夹\"{self.config.cos.tencent.dir}\"，请修改图床配置')
+                msg = f'网络正常，但无法在图床服务器存储桶\"{self.config.cos.tencent.bucket}\"' \
+                      f'中找到文件夹\"{self.config.cos.tencent.dir}\"，请修改图床配置'
             else:
-                self.check_img_server_label.setText(
-                    '无法连接到图床服务器，请检查网络连接或修改图床服务器配置')
-            self.check_img_server_label.setStyleSheet("QLabel { color : #ef5350; }")
+                msg = '无法连接到图床服务器，请检查网络连接或修改图床服务器配置'
+            set_label_text(self.check_img_server_label, msg, 'FAIL')
             self.disable_all_func_btn()
 
     def show_md5_check_status(self):
         check_status = self.enable_md5_check_checkbox.isChecked()
         self.log.warning(f'enable md5 check: {check_status}')
-        if isinstance(self.upload_thread, Uploader):
-            self.upload_thread.check_md5 = check_status
+        if isinstance(self.upload_worker, Uploader):
+            self.upload_worker.check_md5 = check_status
 
     def disable_all_func_btn(self):
         self.check_sync_status_btn.setDisabled(True)

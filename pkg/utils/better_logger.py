@@ -11,7 +11,7 @@ def init_logger():
     # to console
     log_console_handler = dict(
         sink=sys.stderr,
-        level='DEBUG',
+        level='INFO',
         format='<green>{time:MM-DD HH:mm:ss.SSS}</green> '
                '| <level>{level: <8}</level> '
                '| <cyan>{name: <30}</cyan>: <cyan>{function: <18}'
@@ -35,7 +35,7 @@ def init_logger():
     logger.configure(handlers=[log_console_handler, log_file_handler])
 
     # test logger
-    logger.warning('*'*80)
+    logger.warning('*'*50)
     logger.trace('This is a test TRACE message.')
     logger.debug('This is a test DEBUG message.')
     logger.info('This is a test INFO message.')
@@ -43,4 +43,4 @@ def init_logger():
     logger.warning('This is a test WARNING message.')
     logger.error('This is a test ERROR message.')
     logger.critical('This is a test CRITICAL message.')
-    logger.warning('*'*80)
+    logger.warning('*'*50)

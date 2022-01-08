@@ -1,52 +1,93 @@
 import time
 from queue import Queue
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtCore import QThread, Signal, QObject
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
+from pkg.tencent_cos.exceptions import CosBucketNotFoundError
 from loguru import logger
 
 from src.config_loader import ConfigLoader
 
 
-class ImageServer(QThread):
-    """上传一组文件到腾讯COS，与GUI联动的QT子线程类"""
-    tip_text = Signal(str)
+class ImageServer(QObject):
+    """图片服务器相关"""
+    # Signal and Slots
     bucket_list = Signal(list)
     dir_list = Signal(list)
     check_result = Signal(bool, str)
+    check_buckets_finished = Signal()
+    check_dirs_finished = Signal()
+    # Member variables
+    log = logger
 
     def __init__(self):
         super().__init__()
-        self.log = logger
         self.event_queue = Queue()
-        self.cos = None
+        self.config = ConfigLoader().read_config()
+        self.cos_client = None
+        self.cos_bucket = None
 
-    def list_bucket(self, cos_type):
-        """连接到腾讯COS，获取存储桶列表"""
-        if cos_type == 'tencent':
-            config = ConfigLoader().read_config()
-            secret_id = config.cos.tencent.secret_id
-            secret_key = config.cos.tencent.secret_key
-            try:
-                self.cos = TencentCos(secret_id, secret_key)
-                self.check_result.emit(True, '')
-                self.bucket_list.emit(self.cos.list_buckets())
-            except Exception as e:
-                self.check_result.emit(False, str(e))
+    def _reload_config(self):
+        self.config = ConfigLoader().read_config()
+
+    def _is_server_config_changed(self):
+        latest_config = ConfigLoader().read_config()
+        if latest_config.cos.tencent.secret_id != self.config.cos.tencent.secret_id:
+            return False
+        elif latest_config.cos.tencent.secret_key != self.config.cos.tencent.secret_key:
+            return False
         else:
-            raise TypeError(f'Unknown cos type: {cos_type}')
+            return True
 
-    def list_dirs(self, bucket_name):
+    def reconnect_server(self):
+        """连接到腾讯COS，获取存储桶信息"""
+        if self._is_server_config_changed() or \
+                (not isinstance(self.cos_client, TencentCos)):
+            self._reload_config()
+            self.cos_client = TencentCos(self.config.cos.tencent.secret_id,
+                                         self.config.cos.tencent.secret_key)
+            return True
+        else:
+            return False
+
+    def connect_bucket(self, bucket_name: str):
+        """连接到COS存储桶"""
+        if not self.reconnect_server() and isinstance(self.cos_bucket, TencentCosBucket):
+            # 如果已经连上此存储桶，无需重复连接bucket
+            if bucket_name == self.cos_bucket.name:
+                self.log.info(f'Already connected to {bucket_name}.')
+            elif bucket_name not in self.cos_client.list_buckets():
+                raise CosBucketNotFoundError(f'找不到存储桶: {bucket_name}')
+            else:
+                self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
+                self.log.info(f'Connect to {bucket_name} success!')
+        else:
+            self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
+            self.log.info(f'Connect to {bucket_name} success!')
+
+    def list_bucket(self):
+        """连接到腾讯COS，获取存储桶列表"""
+        try:
+            self.reconnect_server()
+            self.check_result.emit(True, '')
+            self.bucket_list.emit(self.cos_client.list_buckets())
+        except Exception as e:
+            self.check_result.emit(False, str(e))
+        finally:
+            self.check_buckets_finished.emit()
+
+    def list_dirs(self, bucket_name: str):
         """连接到腾讯COS，获取存储桶文件夹列表"""
         if not bucket_name:
             self.dir_list.emit([])
-        if not self.cos:
+        if not isinstance(self.cos_client, TencentCos):
             self.dir_list.emit([])
 
-        cos_bucket = TencentCosBucket(self.cos, bucket_name)
-        self.dir_list.emit(cos_bucket.list_dirs())
+        self.connect_bucket(bucket_name)
+        self.dir_list.emit(self.cos_bucket.list_dirs())
+        self.check_dirs_finished.emit()
 
     def run(self):
         while True:

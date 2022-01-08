@@ -1,99 +1,71 @@
 import os
-import time
 from datetime import datetime
 from queue import Queue
 
-from PySide6.QtCore import QThread, Signal
-
-from pkg.tencent_cos.cos import TencentCos
-from pkg.tencent_cos.cos_bucket import TencentCosBucket
+from PySide6.QtCore import Signal, QObject
 from loguru import logger
 
+from pkg.tencent_cos.exceptions import CosBucketDirNotFoundError
 from pkg.utils.file_tools import get_file_md5sum
 from src.config_loader import ConfigLoader
-from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
+from src.img_server import ImageServer
 
 
-class Uploader(QThread):
+class Uploader(QObject):
     """上传一组文件到腾讯COS，与GUI联动的QT子线程类"""
     upload_progress_max_value = Signal(int)
     upload_progress_value = Signal(int)
     console_log_text = Signal(str)
     files_url = Signal(dict)
     check_result = Signal(str)
+    check_finished = Signal()
+    upload_finished = Signal()
 
-    def __init__(self, bucket_name: str, local_files: list, remote_dir: str):
-        """init"""
-        super(Uploader, self).__init__()
+    def __init__(self):
+        super().__init__()
         self.log = logger
-        self.cos = None
-        self.bucket = None
-        self.bucket_name = bucket_name
-        self.local_files = local_files
-        self.remote_dir = remote_dir
+        self._reload_config()
+        self.server = ImageServer()
+        self.local_files = []
         self.check_md5 = False
         self.last_checked_synced_files = []
         self.file_url_dict = {file: None for file in self.local_files}
         self.event_queue = Queue()
 
-    def connect_server(self):
-        """连接到腾讯COS，获取存储桶信息"""
-        if not isinstance(self.cos, TencentCos):
-            config = ConfigLoader().read_config()
-            secret_id = config.cos.tencent.secret_id
-            secret_key = config.cos.tencent.secret_key
-            self.cos = TencentCos(secret_id, secret_key)
-
-    def connect_bucket(self):
-        """连接到COS存储桶"""
-        self.connect_server()
-        if self.bucket_name not in self.cos.list_buckets():
-            raise CosBucketNotFoundError(f'找不到存储桶: {self.bucket_name}')
-        self.bucket = TencentCosBucket(self.cos, self.bucket_name)
+    def _reload_config(self):
+        self.config = ConfigLoader().read_config()
+        self.bucket_name = self.config.cos.tencent.bucket
+        self.remote_dir = self.config.cos.tencent.dir
 
     def connect_bucket_dir(self):
         """连接到腾讯COS，获取存储桶信息"""
-        self.connect_bucket()
-        bucket_dirs = self.bucket.list_dirs()
+        self._reload_config()
+        self.server.connect_bucket(self.bucket_name)
+        bucket_dirs = self.server.cos_bucket.list_dirs()
         bucket_dirs = [''] if not bucket_dirs else bucket_dirs
         self.log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
         if self.remote_dir not in bucket_dirs:
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
     def _get_remote_files(self):
-        self.connect_bucket()
-        return self.bucket.list_dir_files(self.remote_dir)
-
-    def run(self):
-        """启动子线程，将文件上传到COS，同时发送信号到GUI"""
-        self.connect_bucket_dir()
-        while True:
-            time.sleep(0.1)
-            if self.event_queue.qsize() > 0:
-                event = self.event_queue.get()
-                remote_files = self._get_remote_files()
-                if event == 'UPLOAD':
-                    self.upload_files(remote_files)
-                elif event == 'CHECK':
-                    self.check_files(remote_files)
-                else:  # ignore
-                    pass
+        self.server.connect_bucket(self.bucket_name)
+        return self.server.cos_bucket.list_dir_files(self.remote_dir)
 
     def check_file(self, local_file: str):
         """校验是否有相同文件已存在于cos指定文件夹上"""
-        self.connect_bucket()
-        assert isinstance(self.bucket, TencentCosBucket)
+        self.server.connect_bucket(self.bucket_name)
         remote_file_path = self.remote_dir+'/'+local_file.split('/')[-1]
-        if not self.bucket.is_object_exists(remote_file_path):
+        if not self.server.cos_bucket.is_object_exists(remote_file_path):
             return False, f'在存储桶{self.bucket_name}的{self.remote_dir}目录中找不到{local_file}文件'
-        local_file_md5 = get_file_md5sum(local_file)
-        remote_file_md5 = self.bucket.get_object_md5hash(remote_file_path)
-        if local_file_md5 != remote_file_md5:
+        md5_local = get_file_md5sum(local_file)
+        md5_remote = self.server.cos_bucket.get_object_md5hash(remote_file_path)
+        if md5_local != md5_remote:
             return False, f'文件{local_file}的MD5哈希校验不通过，远程存在同名文件'
         return True, ''
 
-    def check_files(self, remote_files):
+    def check_files(self):
         """检查文件同步状态"""
+        remote_files = self._get_remote_files()
         self.console_log_text.emit('正在检查文件同步状态：')
         has_not_synced = False
         if self.check_md5 is True:
@@ -134,9 +106,11 @@ class Uploader(QThread):
         current_time = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         self.check_result.emit(f'已同步{len(self.last_checked_synced_files)}/{len(self.local_files)}, '
                                f'检查时间{current_time}')
+        self.check_finished.emit()
 
-    def upload_files(self, remote_files):
+    def upload_files(self):
         """将本地文件上传到服务器"""
+        remote_files = self._get_remote_files()
         file_num = len(self.local_files)
         self.upload_progress_max_value.emit(file_num)
         for i in range(file_num):
@@ -148,7 +122,7 @@ class Uploader(QThread):
 
             # 如果远端没有此文件，直接上传
             if file_name not in remote_files:
-                self.bucket.upload_object(local_path=local_file, remote_path=self.remote_dir + '/')
+                self.server.cos_bucket.upload_object(local_file, self.remote_dir + '/')
                 msg += f'(上传成功)本地文件: {local_file} \n    '
             else:
                 # 如果没有开启MD5校验，跳过上传
@@ -165,12 +139,13 @@ class Uploader(QThread):
                             msg += f'(远程已存在)本地文件: {local_file} \n    '
                         else:  # 校验失败，覆盖式上传
                             self.log.warning(err_msg)
-                            self.bucket.upload_object(local_path=local_file, remote_path=self.remote_dir + '/')
+                            self.server.cos_bucket.upload_object(local_file, self.remote_dir + '/')
                             msg += f'(上传覆盖成功)本地文件: {local_file} \n    '
-            file_url = self.bucket.get_object_url(remote_path=self.remote_dir+'/', object_key=file_name)
+            file_url = self.server.cos_bucket.get_object_url(self.remote_dir + '/', file_name)
             msg += f'远程URL: {file_url}'
             self.file_url_dict[local_file] = file_url
             self.console_log_text.emit(msg)
             self.upload_progress_value.emit(i+1)
         self.files_url.emit(self.file_url_dict)
+        self.upload_finished.emit()
 
