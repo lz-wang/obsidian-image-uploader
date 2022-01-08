@@ -46,7 +46,7 @@ rm -rf ./build ./dist
 
 然后重新生成打包的文件:
 ```shell
-pyinstaller -D -w main.py
+pyinstaller main.py --clean --onedir --noconsole --icon "./assets/macos.icns" --name ObsidianImageUploader
 ```
 
 然后，在软件根目录的dist目录中：
@@ -94,3 +94,4 @@ cp -rf /Users/lzwang/.conda/envs/obsidian-img-uploader/lib/python3.9/site-packag
 ## 参考资料
 
 1. [Use Nuitka to compile a macOS executable from a Python Pyside6 app](https://www.loekvandenouweland.com/content/pyside6-nuitka-python.html)
+2. [python 3.x - Pyinstaller error: 'SystemError: codesign failure!' on macOS - Stack Overflow](https://stackoverflow.com/questions/68884906/pyinstaller-error-systemerror-codesign-failure-on-macos)
