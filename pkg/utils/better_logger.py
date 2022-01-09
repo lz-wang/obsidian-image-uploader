@@ -1,7 +1,7 @@
 import os.path
 import sys
 
-from loguru import logger as log
+from loguru import logger
 
 
 def add_log_to_console():
