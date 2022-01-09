@@ -2,7 +2,7 @@ import os
 import shutil
 
 import yaml
-from loguru import logger
+from loguru import logger as log
 
 from src.config_model import DEFAULT_CONFIG, AppConfigModel
 
@@ -13,7 +13,6 @@ DEFAULT_CONFIG_PATH = os.path.join(
 class ConfigLoader(object):
     """加载配置"""
     def __init__(self, config_file=None):
-        self.log = logger
         self.config_file = self._get_config_file(config_file)
         self.config = {}
 
@@ -25,7 +24,7 @@ class ConfigLoader(object):
 
     def read_config(self):
         """读取配置"""
-        self.log.debug(f'Read user config in {self.config_file}...')
+        log.debug(f'Read user config in {self.config_file}...')
         with open(self.config_file, 'r') as f:
             self.config = AppConfigModel(**yaml.safe_load(f))
 
@@ -41,14 +40,14 @@ class ConfigLoader(object):
         """初始化用户配置"""
         user_config = os.path.join(DEFAULT_CONFIG_PATH, 'app_config.yaml')
         if os.path.exists(user_config) and self.check_user_config(user_config):
-            self.log.debug(f'check user config in {user_config} format success')
+            log.debug(f'check user config in {user_config} format success')
         else:
-            self.log.warning(f'check user config in {user_config} format failed')
+            log.warning(f'check user config in {user_config} format failed')
             shutil.rmtree(DEFAULT_CONFIG_PATH, ignore_errors=True)
             os.makedirs(DEFAULT_CONFIG_PATH, exist_ok=True)
             with open(user_config, 'w') as f:
                 yaml.safe_dump(DEFAULT_CONFIG, f)
-            self.log.info(f'init user config in {user_config} format success')
+            log.info(f'init user config in {user_config} format success')
 
         return user_config
 
@@ -60,7 +59,7 @@ class ConfigLoader(object):
                 AppConfigModel(**user_config)
             return True
         except Exception as e:
-            self.log.warning(f'check user config in {user_config_path} '
+            log.warning(f'check user config in {user_config_path} '
                              f'format error, detail: {str(e)}')
             return False
 

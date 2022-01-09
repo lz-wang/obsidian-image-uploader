@@ -1,14 +1,12 @@
 import os
-import time
 from datetime import datetime
 from queue import Queue
 
 from PySide6.QtCore import Signal, QObject
-from loguru import logger
+from loguru import logger as log
 
 from pkg.tencent_cos.exceptions import CosBucketDirNotFoundError
 from pkg.utils.file_tools import get_file_md5sum
-from pkg.utils.qt_utils import better_emit
 from src.config_loader import ConfigLoader
 from src.img_server import ImageServer
 
@@ -25,7 +23,6 @@ class Uploader(QObject):
 
     def __init__(self):
         super().__init__()
-        self.log = logger
         self._reload_config()
         self.server = ImageServer()
         self.local_files = []
@@ -46,7 +43,7 @@ class Uploader(QObject):
         self.server.connect_bucket(self.bucket_name)
         bucket_dirs = self.server.cos_bucket.list_dirs()
         bucket_dirs = [''] if not bucket_dirs else bucket_dirs
-        self.log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
+        log.info(f'config remote_dir -> {self.remote_dir}, cos dirs -> {bucket_dirs}')
         if self.remote_dir not in bucket_dirs:
             raise CosBucketDirNotFoundError(f'在存储桶{self.bucket_name}中找不到{self.remote_dir}目录')
 
@@ -142,7 +139,7 @@ class Uploader(QObject):
                         if sync_status:  # 校验成功，跳过上传
                             msg += f'(远程已存在)本地文件: {local_file} \n    '
                         else:  # 校验失败，覆盖式上传
-                            self.log.warning(err_msg)
+                            log.warning(err_msg)
                             self.server.cos_bucket.upload_object(local_file, self.remote_dir + '/')
                             msg += f'(上传覆盖成功)本地文件: {local_file} \n    '
             file_url = self.server.cos_bucket.get_object_url(self.remote_dir + '/', file_name)

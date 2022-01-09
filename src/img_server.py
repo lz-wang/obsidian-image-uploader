@@ -1,13 +1,12 @@
 import time
 from queue import Queue
 
-from PySide6.QtCore import QThread, Signal, QObject
+from PySide6.QtCore import Signal, QObject
+from loguru import logger as log
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
 from pkg.tencent_cos.exceptions import CosBucketNotFoundError
-from loguru import logger
-
 from src.config_loader import ConfigLoader
 
 
@@ -19,8 +18,6 @@ class ImageServer(QObject):
     check_result = Signal(bool, str)
     check_buckets_finished = Signal()
     check_dirs_finished = Signal()
-    # Member variables
-    log = logger
 
     def __init__(self):
         super().__init__()
@@ -57,15 +54,15 @@ class ImageServer(QObject):
         if not self.reconnect_server() and isinstance(self.cos_bucket, TencentCosBucket):
             # 如果已经连上此存储桶，无需重复连接bucket
             if bucket_name == self.cos_bucket.name:
-                self.log.info(f'Already connected to {bucket_name}.')
+                log.info(f'Already connected to {bucket_name}.')
             elif bucket_name not in self.cos_client.list_buckets():
                 raise CosBucketNotFoundError(f'找不到存储桶: {bucket_name}')
             else:
                 self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
-                self.log.info(f'Connect to {bucket_name} success!')
+                log.info(f'Connect to {bucket_name} success!')
         else:
             self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
-            self.log.info(f'Connect to {bucket_name} success!')
+            log.info(f'Connect to {bucket_name} success!')
 
     def list_bucket(self):
         """连接到腾讯COS，获取存储桶列表"""
@@ -94,7 +91,7 @@ class ImageServer(QObject):
             time.sleep(0.1)
             if self.event_queue.qsize() > 0:
                 event = self.event_queue.get()
-                self.log.info(f'receive event: {event}')
+                log.info(f'receive event: {event}')
                 if event['type'] == 'LIST_BUCKET':
                     self.list_bucket(event['cos'])
                 elif event['type'] == 'LIST_FILES':

@@ -1,7 +1,7 @@
 import os
 from urllib.parse import quote
 
-from loguru import logger
+from loguru import logger as log
 from qcloud_cos import CosServiceError
 
 from pkg.tencent_cos.cos import TencentCos
@@ -13,9 +13,9 @@ REGIONS = ['nanjing', 'chengdu', 'beijing', 'guangzhou', 'shanghai', 'chongqing'
 
 class TencentCosBucket(object):
     """腾讯云COS桶文件操作"""
+
     def __init__(self, cos: TencentCos, bucket_name):
         self.cos = cos
-        self.log = logger
         self.name = bucket_name
         self.full_name = bucket_name + '-' + self.cos.get_appid()
         self.base_url = self.get_bucket_url()
@@ -33,14 +33,14 @@ class TencentCosBucket(object):
                 break
             except CosServiceError as e:
                 if e.get_error_code() == 'NoSuchBucket':
-                    self.log.warning(f'bucket {self.name} not in region '
-                                     f'{self.cos.region}, try another region')
+                    log.warning(f'bucket {self.name} not in region '
+                                f'{self.cos.region}, try another region')
                     region = f'ap-{region}'
                     self.cos = TencentCos(self.cos.secret_id, self.cos.secret_key, region)
                     self.full_name = self.name + '-' + self.cos.get_appid()
                     continue
             except Exception as e:
-                self.log.error(f'Fatal: {str(e)}')
+                log.error(f'Fatal: {str(e)}')
 
     def list_objects(self, prefix: str = ''):
         """列出远程对象/文件"""
@@ -48,7 +48,7 @@ class TencentCosBucket(object):
         if 'Contents' in response:
             return [c['Key'].replace(prefix, '') for c in response['Contents']]
         else:
-            self.log.warning(f'Cannot find any objects in bucket {self.name}')
+            log.warning(f'Cannot find any objects in bucket {self.name}')
             return []
 
     def list_dirs(self):
@@ -76,10 +76,10 @@ class TencentCosBucket(object):
         if object_key in self.list_objects():
             if not overwrite:
                 warning_msg = f'{object_key} already in {self.name}, skipped!'
-                self.log.warning(warning_msg)
+                log.warning(warning_msg)
                 return True, warning_msg
             else:
-                self.log.warning(f'{object_key} already in {self.name}, overwrite!')
+                log.warning(f'{object_key} already in {self.name}, overwrite!')
         try:
             with open(local_path, 'rb') as f:
                 self.cos.client.put_object(
@@ -90,7 +90,7 @@ class TencentCosBucket(object):
                     EnableMD5=True,
                     Metadata={'x-cos-meta-md5': get_file_md5sum(local_path)}
                 )
-            self.log.info(f'Upload {local_path} to {remote_path} Success!')
+            log.info(f'Upload {local_path} to {remote_path} Success!')
         except CosServiceError as e:
             return False, e.get_error_code()
         except Exception as e:
@@ -108,13 +108,13 @@ class TencentCosBucket(object):
                 Key=remote_file_path,
                 DestFilePath=local_file_path
             )
-            self.log.info(f'Download {file_name} to {local_file_path} success!')
+            log.info(f'Download {file_name} to {local_file_path} success!')
         except Exception as e:
-            self.log.error(f'Download {file_name} to {local_file_path} failed! (detail: {str(e)})')
+            log.error(f'Download {file_name} to {local_file_path} failed! (detail: {str(e)})')
 
     def _delete_object(self, object_full_path: str):
         """删除指定路径对象"""
-        self.log.warning(f'Bucket {self.name}, delete object: {object_full_path}')
+        log.warning(f'Bucket {self.name}, delete object: {object_full_path}')
         self.cos.client.delete_object(
             Bucket=self.full_name,
             Key=object_full_path
@@ -126,10 +126,10 @@ class TencentCosBucket(object):
             remote_dir += '/'
         if object_key not in self.list_dir_files(remote_dir):
             err_msg = f'{object_key} not found in {remote_dir}'
-            self.log.error(err_msg)
+            log.error(err_msg)
             return False, err_msg
         else:
-            self._delete_object(remote_dir+object_key)
+            self._delete_object(remote_dir + object_key)
             return True, ''
 
     def delete_dir_objects(self, remote_dir: str):
@@ -147,7 +147,7 @@ class TencentCosBucket(object):
             else:
                 file_path = '/'.join(paths[:-1])
             self.delete_object(file_path, file_name)
-        self.log.warning(f'Bucket {self.name} all files has been deleted')
+        log.warning(f'Bucket {self.name} all files has been deleted')
 
     def is_object_exists(self, object_full_path: str):
         return self.cos.client.object_exists(
@@ -159,7 +159,7 @@ class TencentCosBucket(object):
         """获取文件md5哈希值 https://cloud.tencent.com/document/product/436/36427"""
         response = self._get_object_info(object_full_path)
         md5hash = response['x-cos-meta-md5']
-        self.log.info(f'Bucket file: {object_full_path}, md5: {md5hash}')
+        log.info(f'Bucket file: {object_full_path}, md5: {md5hash}')
         return md5hash
 
     def _get_object_info(self, object_full_path: str):
@@ -171,8 +171,8 @@ class TencentCosBucket(object):
 
     def get_object_url(self, remote_path: str, object_key: str):
         """获取指定对象的URL"""
-        object_url = self.base_url + quote(remote_path+object_key)
-        self.log.info(f'get {remote_path+object_key} url: {object_url}')
+        object_url = self.base_url + quote(remote_path + object_key)
+        log.info(f'get {remote_path + object_key} url: {object_url}')
 
         return object_url
 

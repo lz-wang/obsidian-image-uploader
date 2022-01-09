@@ -1,10 +1,8 @@
-import threading
-
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QPushButton, QLineEdit, QLabel, QHBoxLayout, QVBoxLayout, QDialog,
     QComboBox)
-from loguru import logger
+from loguru import logger as log
 
 from pkg.utils.qt_utils import reconnect, set_label_text, better_emit
 from src.config_loader import ConfigLoader
@@ -18,7 +16,6 @@ class SetupImageServerDialog(QDialog):
         super().__init__()
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.read_config()
-        self.log = logger
         self._bucket_worker = None
         self._init_ui()
         self._init_thread_workers()
@@ -141,19 +138,19 @@ class SetupImageServerDialog(QDialog):
             set_label_text(self.check_connect_label,
                            '已成功连接到图床服务器，同步功能可用', 'SUCCESS')
         else:
-            self.log.error(f'cannot connect image server, REASON: {info}')
+            log.error(f'cannot connect image server, REASON: {info}')
             set_label_text(self.check_connect_label,
                            '无法连接到图床服务器，请检查网络连接或修改图床配置', 'FAIL')
 
     def set_select_bucket_box(self, buckets: list):
-        self.log.info(f'Receive bucket list: {buckets}')
+        log.info(f'Receive bucket list: {buckets}')
         self.select_bucket_box.clear()
         if self.config.cos.tencent.bucket in buckets:
             self.select_bucket_box.addItem(self.config.cos.tencent.bucket)
             self.select_bucket_box.setCurrentText(self.config.cos.tencent.bucket)
             buckets.remove(self.config.cos.tencent.bucket)
         else:
-            self.log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default.')
+            log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default.')
             self.select_bucket_box.setCurrentIndex(0)
         self.select_bucket_box.addItems(buckets)
 
@@ -180,7 +177,7 @@ class SetupImageServerDialog(QDialog):
         self.config.cos.tencent.bucket = self.select_bucket_box.currentText()
         self.config.cos.tencent.dir = self.select_dir_box.currentText()
         self.config_loader.update_config(self.config)
-        self.log.info('Config Saved Success')
+        log.info('Config Saved Success')
 
     def refresh_ui_from_config(self):
         self.secret_id_lineedit.setText(self.config.cos.tencent.secret_id)

@@ -1,6 +1,6 @@
 from qcloud_cos import CosConfig, CosS3Client, CosServiceError
 
-from loguru import logger
+from loguru import logger as log
 
 
 class TencentCos(object):
@@ -11,7 +11,6 @@ class TencentCos(object):
     def __init__(self, secret_id: str, secret_key: str, region: str = 'ap-chengdu'):
         """secret_id和secret_key获取参考：
         https://console.cloud.tencent.com/cam/capi"""
-        self.log = logger
         self.secret_id = secret_id
         self.secret_key = secret_key
         self.region = region
@@ -60,15 +59,15 @@ class TencentCos(object):
             self.client.delete_bucket(Bucket=self._fmt_b_name(bucket_name))
             success_msg = f'Delete bucket {bucket_name} success, ' \
                           f'current bucket list -> ({", ".join(self.list_buckets())})'
-            self.log.info(success_msg)
+            log.info(success_msg)
             return True, success_msg
         except CosServiceError as e:
             err_msg = f'Delete bucket {bucket_name} failed，detail: {e.get_error_code()}'
-            self.log.error(err_msg)
+            log.error(err_msg)
             return False, err_msg
         except Exception as e:
             err_msg = f'Delete bucket {bucket_name} failed，detail: {str(e)}'
-            self.log.error(err_msg)
+            log.error(err_msg)
             return False, err_msg
 
     def check_bucket_exists(self, bucket_name: str):

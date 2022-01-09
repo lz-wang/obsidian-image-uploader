@@ -6,15 +6,14 @@ from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QWidget, QPushButton, QLineEdit, QTextEdit, QApplication, QLabel,
     QProgressBar, QFileDialog, QHBoxLayout, QVBoxLayout, QCheckBox)
+from loguru import logger as log
 
-from loguru import logger
-
+from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
 from pkg.utils.qt_utils import reconnect, set_label_text
-from src.obsidian import find_ob_imgs, update_ob_file
-from src.uploader import Uploader
 from src.config_loader import ConfigLoader
 from src.img_server_ui import SetupImageServerDialog
-from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
+from src.obsidian import find_ob_imgs, update_ob_file
+from src.uploader import Uploader
 
 
 class ObsidianImageUploader(QWidget):
@@ -22,7 +21,6 @@ class ObsidianImageUploader(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.log = logger
         self.config_loader = ConfigLoader()
         self.config = self.config_loader.read_config()
         self.overwrite = False
@@ -204,8 +202,8 @@ class ObsidianImageUploader(QWidget):
         try:
             new_file_path = dlg_open_files.getOpenFileName(self, dir=cur_file_path)[0]
         except Exception as e:
-            self.log.error(e)
-            self.log.error(traceback.format_exc())
+            log.error(e)
+            log.error(traceback.format_exc())
         finally:
             if not os.path.exists(str(new_file_path)):
                 new_file_path = cur_file_path
@@ -225,8 +223,8 @@ class ObsidianImageUploader(QWidget):
             new_path = dlg_open_path.getExistingDirectory(
                 caption="选取Obsidian附件", dir=cur_path)
         except Exception as e:
-            self.log.error(e)
-            self.log.error(traceback.format_exc())
+            log.error(e)
+            log.error(traceback.format_exc())
         finally:
             if not new_path:
                 new_path = cur_path
@@ -237,7 +235,7 @@ class ObsidianImageUploader(QWidget):
     def start_convert_to_stmd(self):
         self.start_convert_btn.setDisabled(True)
         ob_file = self.ob_md_file_path.text()
-        self.log.info(f'Obsidian文件: {ob_file}')
+        log.info(f'Obsidian文件: {ob_file}')
         ob_file_images = find_ob_imgs(ob_file)
         img_root = self.ob_attachment_path.text()
         self.upload_worker.local_files = [os.path.join(img_root, img) for img in ob_file_images]
@@ -275,7 +273,7 @@ class ObsidianImageUploader(QWidget):
 
     def need_overwrite(self):
         self.overwrite = self.overwrite_checkbox.checkState() == Qt.Checked
-        self.log.warning(f'overwrite: {self.overwrite}')
+        log.warning(f'overwrite: {self.overwrite}')
         if self.overwrite is True:
             self.overwrite_tip_label.setDisabled(True)
             self.overwrite_suffix.setDisabled(True)
@@ -300,8 +298,8 @@ class ObsidianImageUploader(QWidget):
                            f'文件夹{self.config.cos.tencent.dir})', 'SUCCESS')
             self.enable_all_func_btn()
         except Exception as e:
-            self.log.error(f'cannot connect image server, REASON: {str(e)}')
-            self.log.error(traceback.format_exc())
+            log.error(f'cannot connect image server, REASON: {str(e)}')
+            log.error(traceback.format_exc())
             if isinstance(e, CosBucketNotFoundError):
                 msg = f'网络正常，但无法在图床服务器找到存储桶\"{self.config.cos.tencent.bucket}\"，' \
                       f'请修改图床配置'
@@ -315,7 +313,7 @@ class ObsidianImageUploader(QWidget):
 
     def show_md5_check_status(self):
         check_status = self.enable_md5_check_checkbox.isChecked()
-        self.log.warning(f'enable md5 check: {check_status}')
+        log.warning(f'enable md5 check: {check_status}')
         if isinstance(self.upload_worker, Uploader):
             self.upload_worker.check_md5 = check_status
 
