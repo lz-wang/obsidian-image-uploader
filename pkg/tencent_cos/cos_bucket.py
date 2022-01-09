@@ -68,6 +68,21 @@ class TencentCosBucket(object):
                 raise CosBucketDirNotFoundError(f'Bucket dir {remote_dir} not found.')
         return self.list_objects(prefix=remote_dir)
 
+    def mkdir(self, dir_path: str):
+        """创建文件夹"""
+        if not dir_path.endswith('/'):
+            dir_path += '/'
+        try:
+            self.cos.client.put_object(
+                Bucket=self.full_name,
+                Body=b'',
+                Key=dir_path
+            )
+            return True
+        except Exception as e:
+            log.error(str(e))
+            return False
+
     def upload_object(self, local_path, remote_path: str = '', overwrite=True):
         """上传单个对象"""
         object_key = local_path.split('/')[-1]
@@ -139,14 +154,8 @@ class TencentCosBucket(object):
 
     def delete_all_objects(self):
         """删除所有文件，清空存储桶"""
-        for file in self.list_files():
-            paths = file.split('/')
-            file_name = paths[-1]
-            if len(paths) == 1:
-                file_path = ''
-            else:
-                file_path = '/'.join(paths[:-1])
-            self.delete_object(file_path, file_name)
+        for obj in self.list_objects():
+            self._delete_object(obj)
         log.warning(f'Bucket {self.name} all files has been deleted')
 
     def is_object_exists(self, object_full_path: str):
@@ -158,7 +167,7 @@ class TencentCosBucket(object):
     def get_object_md5hash(self, object_full_path: str):
         """获取文件md5哈希值 https://cloud.tencent.com/document/product/436/36427"""
         response = self._get_object_info(object_full_path)
-        md5hash = response['x-cos-meta-md5']
+        md5hash = response.get('x-cos-meta-md5')
         log.info(f'Bucket file: {object_full_path}, md5: {md5hash}')
         return md5hash
 
