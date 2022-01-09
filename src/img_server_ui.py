@@ -155,15 +155,14 @@ class SetupImageServerDialog(QDialog):
         self.select_bucket_box.addItems(buckets)
 
     def select_folder(self):
-        bucket_name = self.select_bucket_box.currentText()
-        if bucket_name:
-            reconnect(self._dir_thread.started, lambda: self._dir_worker.list_dirs(bucket_name))
-            self._dir_thread.start()
+        reconnect(self._dir_thread.started,
+                  lambda: self._dir_worker.list_dirs(self.select_bucket_box.currentText()))
+        self._dir_thread.start()
 
     def set_select_folder_box(self, dir_list):
         self.select_dir_box.clear()
-        for folder in dir_list:
-            self.select_dir_box.addItem(folder)
+        log.info(f'Receive bucket {self.select_bucket_box.currentText()} dirs: {dir_list}')
+        self.select_dir_box.addItems(dir_list)
         self.select_dir_box.setCurrentIndex(0)
 
     def apply_changes(self):

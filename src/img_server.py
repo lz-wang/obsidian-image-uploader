@@ -1,3 +1,4 @@
+import threading
 import time
 from queue import Queue
 
@@ -62,7 +63,7 @@ class ImageServer(QObject):
                 log.info(f'Connect to {bucket_name} success!')
         else:
             self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
-            log.info(f'Connect to {bucket_name} success!')
+            log.info(f'Connect to cos bucket {bucket_name} success!')
 
     def list_bucket(self):
         """连接到腾讯COS，获取存储桶列表"""
@@ -79,9 +80,13 @@ class ImageServer(QObject):
         """连接到腾讯COS，获取存储桶文件夹列表"""
         if not bucket_name:
             self.dir_list.emit([])
-        if not isinstance(self.cos_client, TencentCos):
-            self.dir_list.emit([])
+            self.check_dirs_finished.emit()
+        else:
+            # 避免因直接运行函数导致的UI卡顿，另起一个线程
+            t = threading.Thread(target=self._list_dirs, args=(bucket_name, ))
+            t.start()
 
+    def _list_dirs(self, bucket_name: str):
         self.connect_bucket(bucket_name)
         self.dir_list.emit(self.cos_bucket.list_dirs())
         self.check_dirs_finished.emit()
