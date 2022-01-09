@@ -1,15 +1,11 @@
+import os.path
 import sys
 
 from loguru import logger
 
 
-def init_logger():
-    """loguru全局初始化，不需要再次导入"""
-    # 移除掉自带的sink
-    logger.remove()
-
-    # to console
-    log_console_handler = dict(
+def add_log_to_console():
+    logger.add(
         sink=sys.stderr,
         level='INFO',
         format='<green>{time:MM-DD HH:mm:ss.SSS}</green> '
@@ -19,9 +15,10 @@ def init_logger():
                '<level>{message}</level> '
     )
 
-    # to file
-    log_file_handler = dict(
-        sink='/Users/lzwang/Downloads/log/loguru_{time:YYYY_MM}.log',
+
+def add_log_to_file(log_dir: str):
+    logger.add(
+        sink=os.path.join(log_dir, 'log_{time:YYYY_MM}.log'),
         level='DEBUG',
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} "
                "| {level: <8} | {name: <20} -> {function: <16} -> line.{line} | {message}",
@@ -32,9 +29,8 @@ def init_logger():
         compression='zip'  # zip、tar、gz、tar.gz
     )
 
-    logger.configure(handlers=[log_console_handler, log_file_handler])
 
-    # test logger
+def show_log_msgs():
     logger.warning('*'*50)
     logger.trace('This is a test TRACE message.')
     logger.debug('This is a test DEBUG message.')
@@ -44,3 +40,19 @@ def init_logger():
     logger.error('This is a test ERROR message.')
     logger.critical('This is a test CRITICAL message.')
     logger.warning('*'*50)
+
+
+def init_logger(log_dir: str = None):
+    """loguru全局初始化，不需要再次导入"""
+    # 移除掉自带的sink
+    logger.remove()
+
+    # to console
+    add_log_to_console()
+
+    # to file
+    if log_dir is not None:
+        add_log_to_file(log_dir)
+
+    # simple test log output
+    show_log_msgs()
