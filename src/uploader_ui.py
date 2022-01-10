@@ -151,7 +151,7 @@ class ObsidianImageUploader(QWidget):
         global_layout.addWidget(self.console_textedit)
         self.setLayout(global_layout)
         self.setFixedSize(1000, 600)
-        self.setWindowTitle('Obsidian图片工具箱')
+        self.setWindowTitle('Obsidian图片工具箱 ver.1.0.1')
 
     def check_sync_status(self):
         self.reset_upload_params()
