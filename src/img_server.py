@@ -26,6 +26,7 @@ class ImageServer(QObject):
         self.config = ConfigLoader().read_config()
         self.cos_client = None
         self.cos_bucket = None
+        self._t = None
 
     def _reload_config(self):
         self.config = ConfigLoader().read_config()
@@ -46,26 +47,49 @@ class ImageServer(QObject):
         if self._is_server_config_changed() or \
                 (not isinstance(self.cos_client, TencentCos)):
             self._reload_config()
-            self.cos_client = TencentCos(self.config.cos.tencent.secret_id,
-                                         self.config.cos.tencent.secret_key)
-            return True
+            self.cos_client = None
+            self.cos_bucket = None
+            try:
+                self.cos_client = TencentCos(
+                    self.config.cos.tencent.secret_id, self.config.cos.tencent.secret_key)
+                log.info('reconnect server success')
+                return True
+            except Exception as e:
+                log.error(f'reconnect server error, detail: {str(e)}')
+                return False
         else:
-            return False
+            log.warning(self._is_server_config_changed())
+            log.warning(isinstance(self.cos_client, TencentCos))
+            log.info('reconnect server skipped')
+            return True
 
     def connect_bucket(self, bucket_name: str):
         """连接到COS存储桶"""
-        if not self.reconnect_server() and isinstance(self.cos_bucket, TencentCosBucket):
-            # 如果已经连上此存储桶，无需重复连接bucket
-            if bucket_name == self.cos_bucket.name:
-                log.info(f'Already connected to {bucket_name}.')
-            elif bucket_name not in self.cos_client.list_buckets():
-                raise CosBucketNotFoundError(f'找不到存储桶: {bucket_name}')
-            else:
-                self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
-                log.info(f'Connect to {bucket_name} success!')
+        if not self.reconnect_server():
+            return False
+        elif isinstance(self.cos_bucket, TencentCosBucket):
+            return self._validate_bucket(bucket_name)
         else:
+            return self._reconnect_bucket(bucket_name)
+
+    def _validate_bucket(self, bucket_name: str):
+        if bucket_name == self.cos_bucket.name:
+            log.info(f'Already connected to {bucket_name}.')
+            return True
+        elif bucket_name not in self.cos_client.list_buckets():
+            log.error(f'Cannot find bucket: {bucket_name}')
+            return False
+        else:
+            return self._reconnect_bucket(bucket_name)
+
+    def _reconnect_bucket(self, bucket_name: str):
+        try:
             self.cos_bucket = TencentCosBucket(self.cos_client, bucket_name)
             log.info(f'Connect to cos bucket {bucket_name} success!')
+            return True
+        except Exception as e:
+            log.error(str(e))
+            return False
 
     def list_bucket(self):
         """连接到腾讯COS，获取存储桶列表"""
@@ -81,27 +105,18 @@ class ImageServer(QObject):
     def list_dirs(self, bucket_name: str):
         """连接到腾讯COS，获取存储桶文件夹列表"""
         if not bucket_name:
+            log.warning(f'invalid bucket name: {str(bucket_name)}')
             self.dir_list.emit([])
             self.check_dirs_finished.emit()
         else:
             # 避免因直接运行函数导致的UI卡顿，另起一个线程
-            t = threading.Thread(target=self._list_dirs, args=(bucket_name, ))
-            t.start()
+            self._t = threading.Thread(target=self._list_dirs, args=(bucket_name, ))
+            self._t.start()
 
     def _list_dirs(self, bucket_name: str):
-        self.connect_bucket(bucket_name)
-        self.dir_list.emit(self.cos_bucket.list_dirs())
-        self.check_dirs_finished.emit()
-
-    def run(self):
-        while True:
-            time.sleep(0.1)
-            if self.event_queue.qsize() > 0:
-                event = self.event_queue.get()
-                log.info(f'receive event: {event}')
-                if event['type'] == 'LIST_BUCKET':
-                    self.list_bucket(event['cos'])
-                elif event['type'] == 'LIST_FILES':
-                    self.list_dirs(event['bucket'])
-                else:
-                    raise TypeError(f'Unknown event: {event}')
+        if self.connect_bucket(bucket_name):
+            self.dir_list.emit(self.cos_bucket.list_dirs())
+            self.check_dirs_finished.emit()
+        else:
+            self.dir_list.emit([])
+            self.check_dirs_finished.emit()

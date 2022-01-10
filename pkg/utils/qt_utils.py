@@ -1,8 +1,10 @@
 import threading
+import time
 from collections import Iterable
 
-from loguru import logger as log
+from PySide6.QtCore import QThread
 from PySide6.QtWidgets import QLabel
+from loguru import logger as log
 
 
 def reconnect(signal, slot):
@@ -30,6 +32,24 @@ def set_label_text(label: QLabel, text: str, level: str = 'INFO'):
     label.setText(text)
 
 
+def show_qthread_status(qt: QThread, name: str = None, delay: float = 0, log_level: str = 'INFO'):
+    if delay > 0:
+        time.sleep(delay)
+    if not name:
+        name = qt.objectName()
+    msg = f'QThread: {name}, isRunning: {qt.isRunning()}, isFinished: {qt.isFinished()}'
+    if log_level == 'WARNING':
+        log.warning(msg)
+    elif log_level == 'ERROR':
+        log.error(msg)
+    elif log_level == 'CRITICAL':
+        log.critical(msg)
+    elif log_level == 'DEBUG':
+        log.debug(msg)
+    else:
+        log.info(msg)
+
+
 def better_emit(signal, emit_args=None):
     """为避免Qt原发送信号过程中由于网络时延造成的UI卡顿，
     此处启动了额外的线程发送信号
@@ -41,9 +61,9 @@ def better_emit(signal, emit_args=None):
     if emit_args is None:
         emit_args = []
     elif isinstance(emit_args, str):
-        emit_args = (emit_args, )
+        emit_args = (emit_args,)
     elif not isinstance(emit_args, Iterable):
-        emit_args = (emit_args, )
+        emit_args = (emit_args,)
     else:
         emit_args = tuple(emit_args)
 

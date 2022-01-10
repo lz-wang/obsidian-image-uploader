@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QComboBox)
 from loguru import logger as log
 
-from pkg.utils.qt_utils import reconnect, set_label_text, better_emit
+from pkg.utils.qt_utils import reconnect, set_label_text, better_emit, show_qthread_status
 from src.config_loader import ConfigLoader
 from src.img_server import ImageServer
 
@@ -53,6 +53,7 @@ class SetupImageServerDialog(QDialog):
         connect_status_label = QLabel('腾讯云 连接状态:')
         connect_status_label.setFixedWidth(self.label_width)
         self.recheck_connect_btn = QPushButton('刷新')
+        self.recheck_connect_btn.setFixedWidth(50)
         self.recheck_connect_btn.clicked.connect(self.recheck_connect)
         self.check_connect_label = QLabel('尚未测试连接状态')
         self.check_connect_layout.addWidget(connect_status_label)
@@ -60,26 +61,26 @@ class SetupImageServerDialog(QDialog):
         self.check_connect_layout.addStretch(1)
         self.check_connect_layout.addWidget(self.recheck_connect_btn)
 
-        default_bucket_label = QLabel('选择默认存储桶:')
-        default_bucket_label.setFixedWidth(self.label_width)
+        self.default_bucket_label = QLabel('选择默认存储桶:')
+        self.default_bucket_label.setFixedWidth(self.label_width)
         self.select_bucket_box = QComboBox()
         self.select_bucket_box.currentTextChanged.connect(self.select_folder)
         self.select_bucket_box.setMinimumWidth(150)
         self.select_bucket_box.setToolTip('⚠️ 存储桶必须为\"公有读"权限时，才能被公网访问')
         self.config_bucket_label = QLabel()
         default_bucket_layout = QHBoxLayout()
-        default_bucket_layout.addWidget(default_bucket_label)
+        default_bucket_layout.addWidget(self.default_bucket_label)
         default_bucket_layout.addWidget(self.select_bucket_box)
         default_bucket_layout.addWidget(self.config_bucket_label)
         default_bucket_layout.addStretch(1)
 
-        default_dir_label = QLabel('选择默认存储目录:')
-        default_dir_label.setFixedWidth(self.label_width)
+        self.default_dir_label = QLabel('选择默认存储目录:')
+        self.default_dir_label.setFixedWidth(self.label_width)
         self.select_dir_box = QComboBox()
         self.select_dir_box.setMinimumWidth(150)
         self.config_dir_label = QLabel()
         default_dir_layout = QHBoxLayout()
-        default_dir_layout.addWidget(default_dir_label)
+        default_dir_layout.addWidget(self.default_dir_label)
         default_dir_layout.addWidget(self.select_dir_box)
         default_dir_layout.addWidget(self.config_dir_label)
         default_dir_layout.addStretch(1)
@@ -114,15 +115,27 @@ class SetupImageServerDialog(QDialog):
         self._bucket_thread = QThread()
         self._bucket_worker = ImageServer()
         self._bucket_worker.moveToThread(self._bucket_thread)
-        reconnect(self._bucket_thread.started, self._bucket_worker.list_bucket)
-        reconnect(self._bucket_worker.check_buckets_finished, self._bucket_thread.quit)
+        reconnect(self._bucket_thread.started, [
+            lambda: show_qthread_status(
+                self._bucket_thread, name='bucket', log_level='DEBUG'),
+            self.set_bucket_thread_effect,
+            self._bucket_worker.list_bucket])
+        reconnect(self._bucket_worker.check_buckets_finished, [
+            self._bucket_thread.quit,
+            lambda: show_qthread_status(
+                self._bucket_thread, name='bucket', delay=0.1, log_level='DEBUG'),
+            self.set_bucket_thread_effect])
         reconnect(self._bucket_worker.bucket_list, self.set_select_bucket_box)
         reconnect(self._bucket_worker.check_result, self.set_check_connect_label)
         # dir worker
         self._dir_thread = QThread()
         self._dir_worker = ImageServer()
         self._dir_worker.moveToThread(self._dir_thread)
-        reconnect(self._dir_worker.check_dirs_finished, self._dir_thread.quit)
+        reconnect(self._dir_worker.check_dirs_finished, [
+            self._dir_thread.quit,
+            lambda: show_qthread_status(
+                self._dir_thread, name='dir', delay=0.1, log_level='DEBUG'),
+            self.set_dir_thread_effect])
         reconnect(self._dir_worker.dir_list, self.set_select_folder_box)
 
     def check_connect(self):
@@ -144,23 +157,22 @@ class SetupImageServerDialog(QDialog):
 
     def set_select_bucket_box(self, buckets: list):
         log.info(f'Receive bucket list: {buckets}')
-        self.select_bucket_box.clear()
-        if self.config.cos.tencent.bucket in buckets:
-            self.select_bucket_box.addItem(self.config.cos.tencent.bucket)
-            self.select_bucket_box.setCurrentText(self.config.cos.tencent.bucket)
-            buckets.remove(self.config.cos.tencent.bucket)
-        else:
-            log.warning(f'Cannot find bucket {self.config.cos.tencent.bucket}, set default.')
-            self.select_bucket_box.setCurrentIndex(0)
         self.select_bucket_box.addItems(buckets)
+        self.select_bucket_box.setCurrentIndex(0)
 
     def select_folder(self):
-        reconnect(self._dir_thread.started,
-                  lambda: self._dir_worker.list_dirs(self.select_bucket_box.currentText()))
-        self._dir_thread.start()
+        cur_bucket_name = self.select_bucket_box.currentText()
+        if cur_bucket_name:
+            reconnect(self._dir_thread.started, [
+                lambda: show_qthread_status(
+                    self._dir_thread, name='dir', log_level='DEBUG'),
+                self.set_dir_thread_effect,
+                lambda: self._dir_worker.list_dirs(cur_bucket_name)])
+            self._dir_thread.start()
+        else:
+            self.select_dir_box.clear()
 
     def set_select_folder_box(self, dir_list):
-        self.select_dir_box.clear()
         log.info(f'Receive bucket {self.select_bucket_box.currentText()} dirs: {dir_list}')
         self.select_dir_box.addItems(dir_list)
         self.select_dir_box.setCurrentIndex(0)
@@ -185,3 +197,21 @@ class SetupImageServerDialog(QDialog):
         self.config_bucket_label.setToolTip(self.config.cos.tencent.bucket)
         self.config_dir_label.setText(f'(当前配置存储目录: {self.config.cos.tencent.dir[:15]})')
         self.config_dir_label.setToolTip(self.config.cos.tencent.dir)
+
+    def set_bucket_thread_effect(self):
+        if self._bucket_thread.isRunning():
+            self.recheck_connect_btn.setText('刷新中...')
+            self.recheck_connect_btn.setDisabled(True)
+            self.select_bucket_box.clear()
+            self.default_bucket_label.setText('正在获取存储桶...')
+        else:
+            self.recheck_connect_btn.setText('刷新')
+            self.recheck_connect_btn.setEnabled(True)
+            self.default_bucket_label.setText('选择默认存储桶:')
+
+    def set_dir_thread_effect(self):
+        if self._dir_thread.isRunning():
+            self.select_dir_box.clear()
+            self.default_dir_label.setText('正在获取目录...')
+        else:
+            self.default_dir_label.setText('选择默认存储目录:')
