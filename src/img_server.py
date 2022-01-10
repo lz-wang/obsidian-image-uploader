@@ -33,11 +33,13 @@ class ImageServer(QObject):
     def _is_server_config_changed(self):
         latest_config = ConfigLoader().read_config()
         if latest_config.cos.tencent.secret_id != self.config.cos.tencent.secret_id:
-            return False
-        elif latest_config.cos.tencent.secret_key != self.config.cos.tencent.secret_key:
-            return False
-        else:
+            log.warning('User config cos.tencent.secret_id changed')
             return True
+        elif latest_config.cos.tencent.secret_key != self.config.cos.tencent.secret_key:
+            log.warning('User config cos.tencent.secret_key changed')
+            return True
+        else:
+            return False
 
     def reconnect_server(self):
         """连接到腾讯COS，获取存储桶信息"""
