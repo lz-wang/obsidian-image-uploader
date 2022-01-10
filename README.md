@@ -41,12 +41,12 @@ pip install -r requirements.txt --no-cache-dir
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
-rm -rf ./build ./dist 
+sudo rm -rf ./build ./dist 
 ```
 
 然后重新生成打包的文件:
 ```shell
-pyinstaller main.py --clean --onedir --noconsole --icon "./assets/macos.icns" --name ObsidianImageUploader
+sudo pyinstaller main.py --clean --onedir --noconsole --icon "./assets/macos.icns" --name ObsidianImageUploader
 ```
 
 然后，在软件根目录的dist目录中：
