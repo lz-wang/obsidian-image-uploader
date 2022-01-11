@@ -1,16 +1,20 @@
 ## 关于
 
-利用对象存储接口实现的一个Obsidian图床软件。
+利用对象云存储接口，纯Python实现的一个Obsidian图床软件。
 
-## 特点
+## 已完成功能
+1. 支持将Obsidian笔记中的本地图片上传到图床服务器，并生成转换为通用Markdown链接的Markdown文件
+2. 支持对Obsidian本地附件文件夹与远程图床文件夹的图片同步状态检查
+3. 支持在检查同步状态时开启文件的MD5值校验（如果MD5校验不通过，那么同步到图床时本地的文件将覆盖远程文件）
+4. 支持对Obsidian附件文件夹的所有附件批量同步到服务器
 
-1. 使用100%的Python实现，支持macOS平台
-2. 支持将Obsidian笔记中的本地图片链接转变为通用Markdown链接，转化Obsidian的笔记为通用Markdown文件
-3. 支持将Obsidian的附件图片全部同步到图床服务器上
+## 待开发功能
+- [ ] 图片上传前压缩
+- [ ] 图片上传前加水印
 
 注意：
-
-- 当前图床仅支持腾讯云COS（开通腾讯云COS存储服务参考[腾讯云COS](https://console.cloud.tencent.com/cos5)）
+1. Obsidian附件的目录层级必须为1级，即附件文件夹下没有子文件夹，否则子文件夹内容将被忽略
+2. 当前图床仅支持腾讯云COS（开通腾讯云COS存储服务参考[腾讯云COS](https://console.cloud.tencent.com/cos5)）
 
 ## 截图
 
