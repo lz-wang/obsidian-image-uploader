@@ -1,12 +1,14 @@
 import os
 import re
 
+from pkg.utils.file_tools import get_encoding
+
 
 def find_ob_imgs(ob_file_path: str):
     if not os.path.exists(ob_file_path):
         return []
 
-    with open(ob_file_path, 'r') as ob:
+    with open(ob_file_path, 'r', encoding=get_encoding(ob_file_path)) as ob:
         lines = ob.readlines()
 
     ob_imgs = []
@@ -22,8 +24,8 @@ def update_ob_file(ob_file_path: str, img_url_map: dict, suffix: str):
 
     new_ob_file_path = ob_file_path.replace('.md', f'{suffix}.md')
     tmp_ob_file_path = ob_file_path.replace('.md', f'.md.tmp')
-    with open(tmp_ob_file_path, 'w') as new_ob:
-        with open(ob_file_path, 'r') as ob:
+    with open(tmp_ob_file_path, 'w', encoding='utf-8') as new_ob:
+        with open(ob_file_path, 'r', encoding=get_encoding(ob_file_path)) as ob:
             ob_lines = ob.readlines()
 
         new_ob_lines = []

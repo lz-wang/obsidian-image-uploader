@@ -149,4 +149,3 @@ class Uploader(QObject):
             self.upload_progress_value.emit(i+1)
         self.files_url.emit(self.file_url_dict)
         self.upload_finished.emit()
-

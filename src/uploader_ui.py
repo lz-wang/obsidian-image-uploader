@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 from loguru import logger as log
 
 from pkg.tencent_cos.exceptions import CosBucketNotFoundError, CosBucketDirNotFoundError
+from pkg.utils.file_tools import is_image_file
 from pkg.utils.qt_utils import reconnect, set_label_text
 from src.config_loader import ConfigLoader
 from src.img_server_ui import SetupImageServerDialog
@@ -182,7 +183,7 @@ class ObsidianImageUploader(QWidget):
     def reset_upload_params(self):
         file_names = os.listdir(self.ob_attachment_path.text())
         self.upload_worker.local_files = [os.path.join(self.ob_attachment_path.text(), file)
-                                          for file in file_names]
+                                          for file in file_names if is_image_file(file)]
         self.upload_worker.check_md5 = self.enable_md5_check_checkbox.isChecked()
         reconnect(self.upload_worker.console_log_text, self.update_console)
 
@@ -236,14 +237,19 @@ class ObsidianImageUploader(QWidget):
         self.start_convert_btn.setDisabled(True)
         ob_file = self.ob_md_file_path.text()
         log.info(f'Obsidian文件: {ob_file}')
-        ob_file_images = find_ob_imgs(ob_file)
+        try:
+            ob_file_images = find_ob_imgs(ob_file)
+        except Exception as e:
+            log.error(e)
+            log.error(traceback.format_exc())
         img_root = self.ob_attachment_path.text()
         self.upload_worker.local_files = [os.path.join(img_root, img) for img in ob_file_images]
         reconnect(self.upload_worker.upload_progress_max_value, self.update_convert_p_bar_max_value)
         reconnect(self.upload_worker.upload_progress_value, self.update_convert_p_bar_value)
-        reconnect(self.upload_worker.files_url, self.update_ob_file_urls)
+        reconnect(self.upload_worker.files_url, self.update_ob_files_url)
         reconnect(self.upload_thread.started, self.upload_worker.upload_files)
         reconnect(self.upload_worker.upload_finished, self.upload_thread.quit)
+        log.info('upload ready to start')
         self.upload_thread.start()
 
     def update_convert_p_bar_max_value(self, max_value):
@@ -255,7 +261,7 @@ class ObsidianImageUploader(QWidget):
     def update_console(self, log_msg):
         self.console_textedit.append(log_msg)
 
-    def update_ob_file_urls(self, url_dict):
+    def update_ob_files_url(self, url_dict):
         ob_file = self.ob_md_file_path.text()
         pure_url_dict = {}
         for file_path, file_url in url_dict.items():
@@ -267,11 +273,15 @@ class ObsidianImageUploader(QWidget):
             suffix = self.overwrite_suffix.text()
             self.config.obsidian.overwrite_suffix = suffix
         self.config.obsidian.recent_note_path = self.ob_md_file_path.text()
-        self.config_loader.update_config(self.config)
-        result, new_ob_file = update_ob_file(ob_file, pure_url_dict, suffix)
-        result = '成功' if result is True else '失败'
-        self.start_convert_btn.setEnabled(True)
-        self.console_textedit.append('-' * 20 + f'更新文件{result}: {new_ob_file}' + '-' * 20)
+        try:
+            self.config_loader.update_config(self.config)
+            result, new_ob_file = update_ob_file(ob_file, pure_url_dict, suffix)
+            result = '成功' if result is True else '失败'
+            self.start_convert_btn.setEnabled(True)
+            self.console_textedit.append('-' * 20 + f'更新文件{result}: {new_ob_file}' + '-' * 20)
+        except Exception as e:
+            log.warning(e)
+            log.error(traceback.format_exc())
 
     def need_overwrite(self):
         self.overwrite = self.overwrite_checkbox.checkState() == Qt.Checked
