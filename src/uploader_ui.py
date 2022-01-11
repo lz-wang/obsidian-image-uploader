@@ -103,7 +103,7 @@ class ObsidianImageUploader(QWidget):
         self.check_sync_layout.addLayout(sync_layout)
 
     def _init_convert_ui(self):
-        self.func_2_label = QLabel('功能2：将单个Obsidian笔记文件图片链接转换为标准形式')
+        self.func_2_label = QLabel('功能2：将单个Obsidian笔记文件图片链接转换为标准Markdown形式')
 
         overwrite_layout = QHBoxLayout()
         self.overwrite_checkbox = QCheckBox('覆盖原始Obsidian文件')
@@ -151,7 +151,7 @@ class ObsidianImageUploader(QWidget):
         global_layout.addWidget(self.console_textedit)
         self.setLayout(global_layout)
         self.setFixedSize(1000, 600)
-        self.setWindowTitle('Obsidian图片工具箱 ver.1.0.1')
+        self.setWindowTitle('Obsidian图片工具箱 ver.1.0.2')
 
     def check_sync_status(self):
         self.reset_upload_params()
@@ -242,7 +242,9 @@ class ObsidianImageUploader(QWidget):
         reconnect(self.upload_worker.upload_progress_max_value, self.update_convert_p_bar_max_value)
         reconnect(self.upload_worker.upload_progress_value, self.update_convert_p_bar_value)
         reconnect(self.upload_worker.files_url, self.update_ob_file_urls)
-        self.upload_worker.event_queue.put('UPLOAD')
+        reconnect(self.upload_thread.started, self.upload_worker.upload_files)
+        reconnect(self.upload_worker.upload_finished, self.upload_thread.quit)
+        self.upload_thread.start()
 
     def update_convert_p_bar_max_value(self, max_value):
         self.convert_progressbar.setMaximum(max_value)
