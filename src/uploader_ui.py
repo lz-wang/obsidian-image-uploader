@@ -37,8 +37,6 @@ class ObsidianImageUploader(QWidget):
         self.upload_worker = Uploader()
         self.upload_worker.moveToThread(self.upload_thread)
         reconnect(self.upload_worker.check_result, self.update_check_result)
-        reconnect(self.upload_worker.upload_progress_max_value, self.update_sync_p_bar_max_value)
-        reconnect(self.upload_worker.upload_progress_value, self.update_sync_p_bar_value)
 
     def _init_ui(self):
         self._init_attachment_ui()
@@ -177,6 +175,8 @@ class ObsidianImageUploader(QWidget):
         self.reset_upload_params()
         reconnect(self.upload_thread.started, self.upload_worker.upload_files)
         reconnect(self.upload_worker.upload_finished, self.upload_thread.quit)
+        reconnect(self.upload_worker.upload_progress_max_value, self.update_sync_p_bar_max_value)
+        reconnect(self.upload_worker.upload_progress_value, self.update_sync_p_bar_value)
         self.disable_sync_btns_until_finished()
         self.upload_thread.start()
 
