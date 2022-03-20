@@ -5,13 +5,12 @@ import yaml
 from loguru import logger as log
 
 from src.config_model import DEFAULT_CONFIG, AppConfigModel
-
-DEFAULT_CONFIG_PATH = os.path.join(
-    os.environ['HOME'], '.config/obsidian-img-uploader')
+from src.env import DEFAULT_CONFIG_PATH
 
 
 class ConfigLoader(object):
     """加载配置"""
+
     def __init__(self, config_file=None):
         self.config_file = self._get_config_file(config_file)
         self.config = {}
@@ -51,7 +50,8 @@ class ConfigLoader(object):
 
         return user_config
 
-    def check_user_config(self, user_config_path):
+    @staticmethod
+    def check_user_config(user_config_path):
         """检查用户配置是否合法"""
         try:
             with open(user_config_path, 'r') as f:
@@ -60,7 +60,7 @@ class ConfigLoader(object):
             return True
         except Exception as e:
             log.warning(f'check user config in {user_config_path} '
-                             f'format error, detail: {str(e)}')
+                        f'format error, detail: {str(e)}')
             return False
 
     def compare_dict_keys(self, d1: dict, d2: dict):

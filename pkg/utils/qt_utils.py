@@ -1,6 +1,6 @@
 import threading
 import time
-from collections import Iterable
+from typing import Iterable
 
 from PySide6.QtCore import QThread
 from PySide6.QtWidgets import QLabel

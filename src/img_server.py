@@ -1,5 +1,4 @@
 import threading
-import time
 from queue import Queue
 
 from PySide6.QtCore import Signal, QObject
@@ -7,7 +6,6 @@ from loguru import logger as log
 
 from pkg.tencent_cos.cos import TencentCos
 from pkg.tencent_cos.cos_bucket import TencentCosBucket
-from pkg.tencent_cos.exceptions import CosBucketNotFoundError
 from src.config_loader import ConfigLoader
 
 
@@ -110,7 +108,7 @@ class ImageServer(QObject):
             self.check_dirs_finished.emit()
         else:
             # 避免因直接运行函数导致的UI卡顿，另起一个线程
-            self._t = threading.Thread(target=self._list_dirs, args=(bucket_name, ))
+            self._t = threading.Thread(target=self._list_dirs, args=(bucket_name,))
             self._t.start()
 
     def _list_dirs(self, bucket_name: str):

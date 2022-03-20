@@ -6,12 +6,12 @@ import qdarktheme
 
 from pkg.utils.better_logger import init_logger
 from src.uploader_ui import ObsidianImageUploader
+from src.env import USER_HOME, APP_NAME, show_env
 
-USER_HOME = os.environ['HOME']
-APP_NAME = 'ObsidianImageUploader'
 
 if __name__ == '__main__':
-    init_logger(os.path.join(USER_HOME, 'Library/Logs', APP_NAME))
+    show_env()
+    init_logger(os.path.join(USER_HOME, APP_NAME, 'logs'))
     app = QApplication(sys.argv)
     oiu = ObsidianImageUploader()
     app.setStyleSheet(qdarktheme.load_stylesheet('light'))

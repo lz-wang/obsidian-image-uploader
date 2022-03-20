@@ -55,7 +55,7 @@ class Uploader(QObject):
     def check_file(self, local_file: str):
         """校验是否有相同文件已存在于cos指定文件夹上"""
         self.server.connect_bucket(self.bucket_name)
-        remote_file_path = self.remote_dir+'/'+local_file.split('/')[-1]
+        remote_file_path = self.remote_dir + '/' + local_file.split('/')[-1]
         if not self.server.cos_bucket.is_object_exists(remote_file_path):
             return False, f'在存储桶{self.bucket_name}的{self.remote_dir}目录中找不到{local_file}文件'
         md5_local = get_file_md5sum(local_file)
@@ -74,7 +74,7 @@ class Uploader(QObject):
         for i in range(len(self.local_files)):
             local_file = self.local_files[i]
             local_file_name = local_file.split("/")[-1]
-            check_msg = f'[{i+1}/{len(self.local_files)}] '
+            check_msg = f'[{i + 1}/{len(self.local_files)}] '
             # 检查文件是否存在于远端
             if local_file_name not in remote_files:
                 sync_status = False
@@ -118,11 +118,12 @@ class Uploader(QObject):
             msg = ''
             local_file = self.local_files[i]
             file_name = local_file.split('/')[-1]
-            msg += f'正在上传文件({i+1}/{file_num})\n    '
+            msg += f'正在上传文件({i + 1}/{file_num})\n    '
             assert os.path.isfile(local_file), f'can not find file {local_file}!'
 
             # 如果远端没有此文件，直接上传
             if file_name not in remote_files:
+                log.warning(f'Uploading: {local_file}')
                 self.server.cos_bucket.upload_object(local_file, self.remote_dir + '/')
                 msg += f'(上传成功)本地文件: {local_file} \n    '
             else:
@@ -146,6 +147,6 @@ class Uploader(QObject):
             msg += f'远程URL: {file_url}'
             self.file_url_dict[local_file] = file_url
             self.console_log_text.emit(msg)
-            self.upload_progress_value.emit(i+1)
+            self.upload_progress_value.emit(i + 1)
         self.files_url.emit(self.file_url_dict)
         self.upload_finished.emit()
