@@ -15,6 +15,7 @@ from src.config_loader import ConfigLoader
 from src.img_server_ui import SetupImageServerDialog
 from src.obsidian import find_ob_imgs, update_ob_file
 from src.uploader import Uploader
+from src.env import USER_HOME, OS
 
 
 class ObsidianImageUploader(QWidget):
@@ -158,7 +159,7 @@ class ObsidianImageUploader(QWidget):
         reconnect(self.upload_worker.check_finished, self.upload_thread.quit)
         self.disable_sync_btns_until_finished()
         self.check_result_label.setText('正在检查同步状态...')
-        self.console_textedit.append('='*80)
+        self.console_textedit.append('=' * 80)
         self.upload_thread.start()
 
     def update_check_result(self, check_result: str):
@@ -182,8 +183,10 @@ class ObsidianImageUploader(QWidget):
 
     def reset_upload_params(self):
         file_names = os.listdir(self.ob_attachment_path.text())
-        self.upload_worker.local_files = [os.path.join(self.ob_attachment_path.text(), file)
+        file_paths = [os.path.join(self.ob_attachment_path.text(), file)
                                           for file in file_names if is_image_file(file)]
+        file_paths = [p.replace('\\', '/') for p in file_paths if OS.lower() == 'windows']
+        self.upload_worker.local_files = file_paths
         self.upload_worker.check_md5 = self.enable_md5_check_checkbox.isChecked()
         reconnect(self.upload_worker.console_log_text, self.update_console)
 
@@ -198,7 +201,7 @@ class ObsidianImageUploader(QWidget):
         if os.path.exists(self.ob_md_file_path.text()):
             cur_file_path = self.ob_md_file_path.text()
         else:
-            cur_file_path = os.environ['HOME']
+            cur_file_path = USER_HOME
         new_file_path = ''
         try:
             new_file_path = dlg_open_files.getOpenFileName(self, dir=cur_file_path)[0]
@@ -217,7 +220,7 @@ class ObsidianImageUploader(QWidget):
         if os.path.exists(self.ob_attachment_path.text()):
             cur_path = self.ob_attachment_path.text()
         else:
-            cur_path = os.environ['HOME']
+            cur_path = USER_HOME
         dlg_open_path = QFileDialog()
         new_path = ''
         try:
@@ -243,7 +246,9 @@ class ObsidianImageUploader(QWidget):
             log.error(e)
             log.error(traceback.format_exc())
         img_root = self.ob_attachment_path.text()
-        self.upload_worker.local_files = [os.path.join(img_root, img) for img in ob_file_images]
+        file_paths = [os.path.join(img_root, file) for file in ob_file_images]
+        file_paths = [p.replace('\\', '/') for p in file_paths if OS.lower() == 'windows']
+        self.upload_worker.local_files = file_paths
         reconnect(self.upload_worker.upload_progress_max_value, self.update_convert_p_bar_max_value)
         reconnect(self.upload_worker.upload_progress_value, self.update_convert_p_bar_value)
         reconnect(self.upload_worker.files_url, self.update_ob_files_url)
