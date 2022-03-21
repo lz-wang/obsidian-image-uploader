@@ -1,6 +1,6 @@
 ## 关于
 
-利用对象云存储接口，纯Python实现的一个Obsidian图床软件。
+利用对象云存储接口，纯Python实现的一个Obsidian图床软件，支持Windows和macOS平台。
 
 ## 已完成功能
 1. 支持将Obsidian笔记中的本地图片上传到图床服务器，并生成转换为通用Markdown链接的Markdown文件
@@ -40,7 +40,9 @@ pip install -r requirements.txt --no-cache-dir
 
 运行或调试根目录下的`main.py`即可。
 
-### 使用Pyinstaller打包App为Windows`.exe`软件包
+### 软件打包
+
+#### Windows: 使用Pyinstaller打包App为Windows`.exe`软件包
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
 rm ./build
@@ -52,7 +54,7 @@ pyinstaller main.py --clean --onedir --noconsole --icon "./assets/windows.ico" -
 ```
 此时，在项目根目录下的`dist`目录中，有以及打包完毕的软件，可以使用[Inno Setup](https://jrsoftware.org/)等Windows下打包软件打包为安装包即可。
 
-### 使用Pyinstaller打包App为macOS`.app`软件包
+#### macOS: 使用Pyinstaller打包App为macOS`.app`软件包
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
@@ -69,7 +71,7 @@ sudo pyinstaller main.py --clean --onedir --noconsole --icon "./assets/macos.icn
 - `./dist/main.app`: macOS专用软件包（无控制台），双击即可运行
 - `./dist/main/main`: 可执行的二进制文件（有控制台）
 
-### 使用Nuitka打包App为二进制文件
+#### 使用Nuitka打包App为二进制文件
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
