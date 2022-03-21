@@ -40,8 +40,19 @@ pip install -r requirements.txt --no-cache-dir
 
 运行或调试根目录下的`main.py`即可。
 
+### 使用Pyinstaller打包App为Windows`.exe`软件包
+在项目根目录，首先删除之前的构建残存目录：
+```shell
+rm ./build
+rm ./dist 
+```
+然后重新生成打包的文件:
+```shell
+pyinstaller main.py --clean --onedir --noconsole --icon "./assets/windows.ico" --name ObsidianImageUploader
+```
+此时，在项目根目录下的`dist`目录中，有以及打包完毕的软件，可以使用[Inno Setup](https://jrsoftware.org/)等Windows下打包软件打包为安装包即可。
 
-### 是用Pyinstaller打包App为macOS`.app`软件包
+### 使用Pyinstaller打包App为macOS`.app`软件包
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
@@ -99,3 +110,4 @@ cp -rf /Users/lzwang/.conda/envs/obsidian-img-uploader/lib/python3.9/site-packag
 
 1. [Use Nuitka to compile a macOS executable from a Python Pyside6 app](https://www.loekvandenouweland.com/content/pyside6-nuitka-python.html)
 2. [python 3.x - Pyinstaller error: 'SystemError: codesign failure!' on macOS - Stack Overflow](https://stackoverflow.com/questions/68884906/pyinstaller-error-systemerror-codesign-failure-on-macos)
+3. [PNG转ICO图标格式 - 在线，免费，快速](https://png2icojs.com/zh/)
