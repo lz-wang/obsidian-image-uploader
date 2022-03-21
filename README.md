@@ -40,8 +40,19 @@ pip install -r requirements.txt --no-cache-dir
 
 运行或调试根目录下的`main.py`即可。
 
+### 使用Pyinstaller打包App为Windows`.exe`软件包
+在项目根目录，首先删除之前的构建残存目录：
+```shell
+rm ./build
+rm ./dist 
+```
+然后重新生成打包的文件:
+```shell
+pyinstaller main.py --clean --onedir --noconsole --icon "./assets/windows.ico" --name ObsidianImageUploader
+```
+此时，在项目根目录下的`dist`目录中，有
 
-### 是用Pyinstaller打包App为macOS`.app`软件包
+### 使用Pyinstaller打包App为macOS`.app`软件包
 
 在项目根目录，首先删除之前的构建残存目录：
 ```shell
